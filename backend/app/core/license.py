@@ -73,7 +73,7 @@ FEATURE_LABEL = {
     "multi_tenant": "multi-tenant MSP (multi-clients cloisonnés)",
     "api_extended": "API étendue",
     "ha": "haute disponibilité",
-    "sso": "SSO / SAML",
+    "sso": "SSO (OpenID Connect)",
     "audit": "journal d'audit",
     "support_247": "support 24/7",
 }
@@ -87,7 +87,8 @@ COMMUNITY_PLAN = {
 }
 
 
-def _verify(key: str) -> dict | None:
+def _verify_signature(key: str) -> dict | None:
+    """Payload si la signature est valide (sans contrôle d'expiration), sinon None."""
     try:
         payload_b64, sig_hex = key.strip().split(".")
         payload_raw = base64.urlsafe_b64decode(payload_b64 + "==")
@@ -95,16 +96,29 @@ def _verify(key: str) -> dict | None:
         public.verify(bytes.fromhex(sig_hex), payload_raw)
         payload = json.loads(payload_raw)
         expires = payload.get("expires")
-        if expires and date.fromisoformat(expires) < date.today():
-            return None  # licence expirée
+        if expires:
+            date.fromisoformat(expires)  # date illisible = clé invalide
         return payload
     except Exception:  # noqa: BLE001 — clé malformée/falsifiée = Community
         return None
 
 
+def _is_expired(expires: str | None) -> bool:
+    return bool(expires) and date.fromisoformat(expires) < date.today()
+
+
+def _verify(key: str) -> dict | None:
+    payload = _verify_signature(key)
+    if payload and _is_expired(payload.get("expires")):
+        return None  # licence expirée
+    return payload
+
+
 @lru_cache
 def _cached_license(key: str) -> dict:
-    payload = _verify(key) if key else None
+    # Seule la signature est mise en cache : l'expiration est réévaluée à chaque
+    # appel (get_license), sinon une licence expirée resterait active jusqu'au redémarrage.
+    payload = _verify_signature(key) if key else None
     if not payload:
         return dict(COMMUNITY_PLAN)
     plan = payload.get("plan", "professional")
@@ -126,7 +140,10 @@ def _cached_license(key: str) -> dict:
 
 
 def get_license() -> dict:
-    return _cached_license(settings.LICENSE_KEY or "")
+    lic = _cached_license(settings.LICENSE_KEY or "")
+    if _is_expired(lic["expires"]):
+        return dict(COMMUNITY_PLAN)
+    return lic
 
 
 def has_feature(name: str) -> bool:

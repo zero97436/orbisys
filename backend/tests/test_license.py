@@ -117,3 +117,49 @@ def test_tampered_or_expired_key_falls_back_to_free(monkeypatch):
     rogue = base64.urlsafe_b64encode(raw).decode().rstrip("=") + "." + attacker.sign(raw).hex()
     monkeypatch.setattr(cfg, "LICENSE_KEY", rogue)
     assert get_license()["plan"] == "community"
+
+
+def test_expiry_is_reevaluated_despite_cache(monkeypatch):
+    """Une licence valide au démarrage doit retomber en Community à son expiration,
+    sans redémarrage (le cache ne porte que sur la signature)."""
+    from datetime import date as real_date
+    from app.core.config import settings as cfg
+
+    monkeypatch.setattr(lic_mod, "PUBLIC_KEY_HEX", _TEST_PUB_HEX)
+    key = _make_key({"plan": "business", "customer": "Cache", "expires": "2031-06-30"})
+    monkeypatch.setattr(cfg, "LICENSE_KEY", key)
+
+    class _Before(real_date):
+        @classmethod
+        def today(cls):
+            return real_date(2031, 6, 30)
+
+    class _After(real_date):
+        @classmethod
+        def today(cls):
+            return real_date(2031, 7, 1)
+
+    monkeypatch.setattr(lic_mod, "date", _Before)
+    assert get_license()["plan"] == "business"      # dernier jour : encore valide
+    monkeypatch.setattr(lic_mod, "date", _After)
+    assert get_license()["plan"] == "community"     # lendemain : Community, sans restart
+    assert get_license()["features"] == []
+
+
+def test_key_format_issued_by_licensing_service(monkeypatch):
+    """Compatibilité : format exact émis par licensing/app.py (_sign_license)."""
+    from app.core.config import settings as cfg
+
+    monkeypatch.setattr(lic_mod, "PUBLIC_KEY_HEX", _TEST_PUB_HEX)
+    key = _make_key({"plan": "professional", "customer": "client@example.com",
+                     "features": [], "expires": "2099-01-01"})
+    monkeypatch.setattr(cfg, "LICENSE_KEY", key)
+    lic = get_license()
+    assert lic["plan"] == "professional" and lic["max_hosts"] is None
+    assert lic["customer"] == "client@example.com" and lic["expires"] == "2099-01-01"
+    assert "advanced_channels" in lic["features"]
+
+    # Date d'expiration illisible = clé invalide -> Community.
+    bad = _make_key({"plan": "business", "expires": "31/12/2099"})
+    monkeypatch.setattr(cfg, "LICENSE_KEY", bad)
+    assert get_license()["plan"] == "community"
