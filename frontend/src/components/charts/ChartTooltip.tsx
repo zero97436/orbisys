@@ -15,8 +15,7 @@ export function ChartTooltip({ active, payload, label, unit }: TooltipProps<numb
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: p.color }} />
           <span className="capitalize">{p.name}</span>
           <span className="ml-auto font-medium tabular-nums text-ink">
-            {p.value}
-            {unit ?? ""}
+            {p.value == null ? "—" : `${p.value}${unit ?? ""}`}
           </span>
         </p>
       ))}
