@@ -41,6 +41,14 @@ function ClickCatcher({ onClick }: { onClick: (lat: number, lon: number) => void
   return null;
 }
 
+/** Fond de carte. Par défaut : tuiles OpenStreetMap (sans clé ; usage modéré, cf.
+ *  https://operations.osmfoundation.org/policies/tiles/). Pour un fournisseur avec clé
+ *  ou un serveur de tuiles interne : VITE_MAP_TILE_URL et VITE_MAP_ATTRIBUTION au build.
+ *  Le thème sombre est obtenu par filtre CSS (.orbisys-tiles, index.css). */
+const TILE_URL = import.meta.env.VITE_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION =
+  import.meta.env.VITE_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
 export default function GeoMapPage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -134,10 +142,7 @@ export default function GeoMapPage() {
       <div className={cn("card overflow-hidden p-0", placing !== 0 && "ring-2 ring-brand")}
            style={{ height: "calc(100vh - 260px)", minHeight: 420, cursor: placing ? "crosshair" : undefined }}>
         <MapContainer center={DEFAULT_CENTER} zoom={5} className="h-full w-full" scrollWheelZoom>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          />
+          <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} className="orbisys-tiles" maxZoom={19} />
           <FitBounds points={myPos ? [myPos] : points} />
           {placing !== 0 && <ClickCatcher onClick={place} />}
 

@@ -209,6 +209,15 @@ body {
   display: none;
 }
 
+/* Fond de carte : tuiles claires assombries en thème sombre (aucun fournisseur « dark » sans clé). */
+.orbisys-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.85) saturate(0.5);
+}
+:root[data-theme="light"] .orbisys-tiles { filter: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .orbisys-tiles { filter: none; }
+}
+
 /* Entrée de page : courte, sans décalage de mise en page. */
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(6px); }
