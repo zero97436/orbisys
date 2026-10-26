@@ -24,18 +24,20 @@ export function StatusBadge({
         size === "xs" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs",
       )}
     >
-      <Icon className={size === "xs" ? "h-3 w-3" : "h-3.5 w-3.5"} />
+      <Icon className={size === "xs" ? "h-3 w-3" : "h-3.5 w-3.5"} aria-hidden />
       {label ?? t(`status.${s}`)}
     </span>
   );
 }
 
-export function StatusDot({ status, pulse }: { status?: CheckStatus | null; pulse?: boolean }) {
+/** Pastille de statut. Toujours accompagnée d'un texte : soit visible à côté,
+ *  soit fourni ici via `label` (annoncé aux lecteurs d'écran). */
+export function StatusDot({ status, pulse, label }: { status?: CheckStatus | null; pulse?: boolean; label?: string }) {
   const meta = statusMeta(status);
   return (
-    <span className="relative inline-flex h-2.5 w-2.5">
+    <span className="relative inline-flex h-2.5 w-2.5 shrink-0" role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       {pulse && (
-        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-60", meta.dot, "animate-ping")} />
+        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping", meta.dot)} />
       )}
       <span className={cn("relative inline-flex h-2.5 w-2.5 rounded-full", meta.dot)} />
     </span>

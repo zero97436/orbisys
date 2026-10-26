@@ -21,12 +21,18 @@ export default {
           soft: "rgb(var(--ink-soft) / <alpha-value>)",
           faint: "rgb(var(--ink-faint) / <alpha-value>)",
         },
+        // Statuts : variables par thème (lisibles en sombre et en clair, voir index.css).
         status: {
-          ok: "#10B981",
-          warning: "#F59E0B",
-          critical: "#EF4444",
-          unknown: "#64748B",
-          info: "#3B82F6",
+          ok: "rgb(var(--st-ok) / <alpha-value>)",
+          warning: "rgb(var(--st-warning) / <alpha-value>)",
+          critical: "rgb(var(--st-critical) / <alpha-value>)",
+          unknown: "rgb(var(--st-unknown) / <alpha-value>)",
+          info: "rgb(var(--st-info) / <alpha-value>)",
+          maintenance: "rgb(var(--st-maintenance) / <alpha-value>)",
+        },
+        accent: {
+          cyan: "rgb(var(--cyan) / <alpha-value>)",
+          violet: "rgb(var(--violet) / <alpha-value>)",
         },
         brand: {
           // Surchargeable par le branding (plan Professional) via variables CSS.
@@ -34,9 +40,14 @@ export default {
           soft: "rgb(var(--brand-soft-rgb, 29 78 216) / <alpha-value>)",
         },
       },
+      fontFamily: {
+        sans: ["Schibsted Grotesk", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "Cascadia Mono", "Consolas", "monospace"],
+      },
       boxShadow: {
         card: "0 1px 2px 0 rgba(0,0,0,0.4), 0 1px 3px 0 rgba(0,0,0,0.3)",
         glow: "0 0 0 1px rgba(59,130,246,0.4), 0 8px 30px -8px rgba(59,130,246,0.35)",
+        pop: "0 20px 50px -20px rgba(0,0,0,0.7), 0 0 0 1px rgb(var(--border))",
       },
       keyframes: {
         "pulse-ring": {

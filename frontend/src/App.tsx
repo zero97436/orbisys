@@ -7,6 +7,8 @@ import { Loading } from "./components/States";
 import LoginPage from "./pages/LoginPage";
 import { BrandingProvider } from "./lib/branding";
 import { I18nProvider } from "./lib/i18n";
+import { ToastProvider } from "./components/ui/Toast";
+import { ConfirmProvider } from "./components/ui/Confirm";
 
 // Code splitting : chaque page est chargée à la demande.
 const StatusPage = lazy(() => import("./pages/StatusPage"));
@@ -39,6 +41,8 @@ const DocsPage = lazy(() => import("./pages/DocsPage"));
 export default function App() {
   return (
     <I18nProvider>
+    <ToastProvider>
+    <ConfirmProvider>
     <BrandingProvider>
     <AuthProvider>
       <Routes>
@@ -90,6 +94,8 @@ export default function App() {
       </Routes>
     </AuthProvider>
     </BrandingProvider>
+    </ConfirmProvider>
+    </ToastProvider>
     </I18nProvider>
   );
 }

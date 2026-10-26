@@ -153,10 +153,11 @@ export function AlertCard({
                           onClick={() => onRemediate(incident.alert_id, a.id)}
                           disabled={!!remediation?.loading}
                           title={a.description}
-                          className={isSuggested ? "btn-primary px-2.5 py-1.5 text-xs" : "btn-ghost px-2.5 py-1.5 text-xs"}
+                          className={cn("btn-ghost px-2.5 py-1.5 text-xs", isSuggested && "border-accent-violet/50")}
                         >
-                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isSuggested ? <Sparkles className="h-3.5 w-3.5" /> : null}
-                          {a.label}{isSuggested ? ` · ${t("alert.suggested")}` : ""}
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : isSuggested ? <Sparkles className="h-3.5 w-3.5 text-accent-violet" aria-hidden /> : null}
+                          {a.label}
+                          {isSuggested && <span className="rounded bg-accent-violet/15 px-1 text-[10px] font-semibold text-accent-violet">{t("alert.suggestedAi")}</span>}
                         </button>
                       );
                     })}

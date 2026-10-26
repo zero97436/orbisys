@@ -1,25 +1,31 @@
+import { useId } from "react";
+
 /** Pictogramme Orbisys : planète (sphère réseau) + deux orbites croisées
  *  dégradé bleu→violet avec nœuds orbitaux. */
 export function Logo({ className = "h-8 w-8" }: { className?: string }) {
+  // Identifiants uniques : plusieurs logos peuvent coexister (barre latérale masquée + tiroir mobile).
+  const uid = useId().replace(/:/g, "");
+  const grad = `orbisys-grad-${uid}`;
+  const planet = `orbisys-planet-${uid}`;
   return (
     <svg viewBox="0 0 100 100" className={className} aria-label="Orbisys">
       <defs>
-        <linearGradient id="orbisys-grad" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#38BDF8" />
           <stop offset="1" stopColor="#8B5CF6" />
         </linearGradient>
-        <radialGradient id="orbisys-planet" cx="0.4" cy="0.35" r="0.85">
+        <radialGradient id={planet} cx="0.4" cy="0.35" r="0.85">
           <stop offset="0" stopColor="#1E3A8A" />
           <stop offset="1" stopColor="#0B1230" />
         </radialGradient>
       </defs>
 
       {/* Orbite arrière */}
-      <ellipse cx="50" cy="50" rx="43" ry="16" fill="none" stroke="url(#orbisys-grad)"
+      <ellipse cx="50" cy="50" rx="43" ry="16" fill="none" stroke={`url(#${grad})`}
                strokeWidth="4" transform="rotate(-27 50 50)" opacity="0.85" />
 
       {/* Planète */}
-      <circle cx="50" cy="50" r="21" fill="url(#orbisys-planet)" stroke="url(#orbisys-grad)" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="21" fill={`url(#${planet})`} stroke={`url(#${grad})`} strokeWidth="1.5" />
       {/* Points réseau sur la sphère */}
       <g fill="#38BDF8">
         <circle cx="44" cy="42" r="1.6" />
@@ -36,13 +42,13 @@ export function Logo({ className = "h-8 w-8" }: { className?: string }) {
       </g>
 
       {/* Orbite avant */}
-      <ellipse cx="50" cy="50" rx="43" ry="16" fill="none" stroke="url(#orbisys-grad)"
+      <ellipse cx="50" cy="50" rx="43" ry="16" fill="none" stroke={`url(#${grad})`}
                strokeWidth="4" transform="rotate(32 50 50)" />
 
       {/* Nœuds orbitaux */}
-      <circle cx="83" cy="34" r="6.5" fill="url(#orbisys-grad)" />
-      <circle cx="20" cy="63" r="6" fill="url(#orbisys-grad)" />
-      <circle cx="80" cy="66" r="5.5" fill="url(#orbisys-grad)" />
+      <circle cx="83" cy="34" r="6.5" fill={`url(#${grad})`} />
+      <circle cx="20" cy="63" r="6" fill={`url(#${grad})`} />
+      <circle cx="80" cy="66" r="5.5" fill={`url(#${grad})`} />
     </svg>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Filter, BellRing } from "lucide-react";
 import { ackIncident, analyzeIncident, createTicket, getAgentCommand, getIncidents, remediateIncident, unackIncident } from "../api/endpoints";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,9 @@ import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
 
 const FILTERS: (CheckStatus | "ALL")[] = ["ALL", "CRITICAL", "WARNING", "UNKNOWN"];
 
@@ -29,6 +32,11 @@ export default function IncidentCenterPage() {
   const { user } = useAuth();
   const editable = canEdit(user);
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const toast = useToast();
+  // Suivi des commandes d'agent : intervalles arrêtés si l'utilisateur quitte la page.
+  const timers = useRef(new Set<ReturnType<typeof setInterval>>());
+  useEffect(() => () => { timers.current.forEach(clearInterval); }, []);
 
   const [ticketBusy, setTicketBusy] = useState<number | null>(null);
   const openTicket = async (alertId: number) => {
@@ -36,6 +44,8 @@ export default function IncidentCenterPage() {
     try {
       await createTicket({ alert_id: alertId });
       navigate("/tickets");
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
     } finally {
       setTicketBusy(null);
     }
@@ -56,7 +66,11 @@ export default function IncidentCenterPage() {
   });
 
   const toggleAck = async (id: number, acknowledged: boolean) => {
-    await (acknowledged ? unackIncident(id) : ackIncident(id));
+    try {
+      await (acknowledged ? unackIncident(id) : ackIncident(id));
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
+    }
     refresh();
   };
 
@@ -84,6 +98,23 @@ export default function IncidentCenterPage() {
 
   const [remediations, setRemediations] = useState<Record<number, RemediationState>>({});
   const remediate = async (id: number, action: string) => {
+    // Validation humaine explicite avant toute action exécutée sur l'infrastructure.
+    const inc = list.find((i) => i.alert_id === id);
+    const meta = analyses[id]?.actions?.find((a) => a.id === action);
+    const ok = await confirm({
+      title: t("rem.confirmTitle"),
+      message: (
+        <>
+          <p>{t("rem.confirmBody")}</p>
+          {meta?.description && <p className="mt-2 text-ink">{meta.description}</p>}
+          {analyses[id]?.suggested === action && <p className="mt-2 text-xs text-ink-faint">{t("rem.aiSuggestedNote")}</p>}
+        </>
+      ),
+      details: `${meta?.label ?? action} → ${inc ? `${inc.host_name} / ${inc.check_name}` : `#${id}`}`,
+      confirmLabel: t("rem.execute"),
+      tone: "danger",
+    });
+    if (!ok) return;
     setRemediations((p) => ({ ...p, [id]: { loading: action } }));
     try {
       const { data } = await remediateIncident(id, action);
@@ -114,6 +145,7 @@ export default function IncidentCenterPage() {
         const { data } = await getAgentCommand(commandId);
         if (data.status === "done" || data.status === "failed") {
           clearInterval(timer);
+          timers.current.delete(timer);
           setRemediations((p) => ({
             ...p,
             [incidentId]: { text: data.result ?? t("inc.noResult"), ok: data.status === "done" },
@@ -124,12 +156,14 @@ export default function IncidentCenterPage() {
       }
       if (tries >= 20) {
         clearInterval(timer);
+        timers.current.delete(timer);
         setRemediations((p) => ({
           ...p,
           [incidentId]: { text: t("inc.agentNoReply"), ok: false },
         }));
       }
     }, 3000);
+    timers.current.add(timer);
   };
 
   if (loading && !incidents) return <Loading />;
