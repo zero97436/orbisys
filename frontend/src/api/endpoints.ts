@@ -63,6 +63,18 @@ export const updateCheck = (id: number, data: Partial<Check>) =>
   api.put<Check>(`/checks/${id}`, data);
 export const deleteCheck = (id: number) => api.delete(`/checks/${id}`);
 export const runCheck = (id: number) => api.post<CheckResult>(`/checks/${id}/run`);
+/** Disponibilité agrégée côté serveur (tous les checks visibles, toute la fenêtre). */
+export interface AvailabilityReport {
+  window_hours: number;
+  ok: number;
+  total: number;
+  /** null : aucun résultat dans la fenêtre. */
+  availability: number | null;
+  buckets: { start: string; end: string; ok: number; total: number }[];
+}
+export const getAvailability = (hours = 24, buckets = 24, checkId?: number) =>
+  api.get<AvailabilityReport>("/dashboard/availability", { params: { hours, buckets, ...(checkId ? { check_id: checkId } : {}) } });
+
 export const listResults = (id: number, limit = 100, offset = 0) =>
   api.get<CheckResult[]>(`/checks/${id}/results`, { params: { limit, offset } });
 
