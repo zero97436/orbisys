@@ -18,10 +18,10 @@ export function ResponseTimeChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={AXIS.stroke} vertical={false} />
         <XAxis dataKey="label" stroke={AXIS.stroke} tick={AXIS.tick} minTickGap={28} />
-        <YAxis stroke={AXIS.stroke} tick={AXIS.tick} width={44} unit="ms" />
+        <YAxis stroke={AXIS.stroke} tick={AXIS.tick} width={56} unit="ms" />
         <Tooltip content={<ChartTooltip unit=" ms" />} />
         <Line
           type="monotone"
