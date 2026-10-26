@@ -37,7 +37,7 @@ export function SectionTitle({
   icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
         {Icon && <Icon className="h-4 w-4" />}
         {title}
