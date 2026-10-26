@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,19 @@ router = APIRouter(
 @router.get("/summary", response_model=DashboardSummary)
 def summary(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return DashboardService(db, user).summary()
+
+
+@router.get("/availability")
+def availability(
+    hours: int = Query(24, ge=1, le=24 * 31),
+    buckets: int = Query(24, ge=1, le=96),
+    check_id: int | None = Query(None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Disponibilité agrégée (checks visibles par l'utilisateur) sur `hours` heures,
+    éventuellement limitée à un check."""
+    return DashboardService(db, user).availability(hours=hours, buckets=buckets, check_id=check_id)
 
 
 @router.get("/incidents", response_model=list[IncidentOut])
