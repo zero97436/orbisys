@@ -45,7 +45,18 @@ function ClickCatcher({ onClick }: { onClick: (lat: number, lon: number) => void
  *  https://operations.osmfoundation.org/policies/tiles/). Pour un fournisseur avec clé
  *  ou un serveur de tuiles interne : VITE_MAP_TILE_URL et VITE_MAP_ATTRIBUTION au build.
  *  Le thème sombre est obtenu par filtre CSS (.orbisys-tiles, index.css). */
-const TILE_URL = import.meta.env.VITE_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+/** Valeur de build (fixée par l'exploitant) : on n'accepte qu'une URL http(s) bien formée. */
+function safeTileUrl(raw?: string): string {
+  if (!raw) return DEFAULT_TILE_URL;
+  try {
+    const u = new URL(raw.replace(/\{[a-z]+\}/g, "0"));
+    return u.protocol === "https:" || u.protocol === "http:" ? raw : DEFAULT_TILE_URL;
+  } catch {
+    return DEFAULT_TILE_URL;
+  }
+}
+const TILE_URL = safeTileUrl(import.meta.env.VITE_MAP_TILE_URL);
 const TILE_ATTRIBUTION =
   import.meta.env.VITE_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
