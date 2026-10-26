@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Play, Timer, Gauge, History } from "lucide-react";
-import { getCheck, listResults, runCheck } from "../api/endpoints";
+import { getAvailability, getCheck, listResults, runCheck, type AvailabilityReport } from "../api/endpoints";
 import type { Check, CheckResult } from "../types";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card, SectionTitle } from "../components/ui/Card";
@@ -11,16 +11,21 @@ import { AvailabilityChart } from "../components/charts/AvailabilityChart";
 import { ResponseTimeChart } from "../components/charts/ResponseTimeChart";
 import { PerfdataChart } from "../components/charts/PerfdataChart";
 import { EmptyState, ErrorState, Loading } from "../components/States";
-import { availabilityBuckets, availabilityRatio, responseTimeSeries } from "../lib/series";
-import { formatDate, formatMs, formatPercent } from "../lib/format";
+import { bucketsFromReport, responseTimeSeries } from "../lib/series";
+import { formatDate, formatMs, formatPercent, localeOf } from "../lib/format";
+import { metaFor } from "../lib/checkMeta";
+import { apiError, apiErrorMessage } from "../lib/apiError";
+import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { useI18n } from "../lib/i18n";
+import { availabilityStatus, ACCENT_OF } from "../lib/status";
 
 const DAY = 24 * 3600 * 1000;
 
 export default function CheckDetailPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const toast = useToast();
   const { id } = useParams();
   const checkId = Number(id);
   const [check, setCheck] = useState<Check | null>(null);
@@ -36,14 +41,19 @@ export default function CheckDetailPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE = 300;
 
+  // Disponibilité 24 h calculée par le serveur sur TOUS les résultats du check.
+  const [avail24, setAvail24] = useState<AvailabilityReport | null>(null);
+
   const load = () => {
     Promise.all([getCheck(checkId), listResults(checkId, PAGE)])
       .then(([c, r]) => {
         setCheck(c.data);
         setResults(r.data);
         setHasMore(r.data.length === PAGE);
+        getAvailability(24, 24, checkId).then((a) => setAvail24(a.data)).catch(() => setAvail24(null));
       })
-      .catch(() => setError(t("cd.notFound")))
+      // 404 = check inexistant ou non visible ; sinon panne réseau / serveur.
+      .catch((e) => setError(apiError(e).status === 404 ? t("cd.notFound") : t("common.loadError")))
       .finally(() => setLoading(false));
   };
   useEffect(load, [checkId]);
@@ -54,6 +64,8 @@ export default function CheckDetailPage() {
       const { data } = await listResults(checkId, PAGE, results.length);
       setResults((r) => [...r, ...data]);
       setHasMore(data.length === PAGE);
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.loadError")));
     } finally {
       setLoadingMore(false);
     }
@@ -61,13 +73,20 @@ export default function CheckDetailPage() {
 
   const run = async () => {
     setRunning(true);
-    await runCheck(checkId);
-    load();
-    setRunning(false);
+    try {
+      const { data: r } = await runCheck(checkId);
+      const msg = `${t(`status.${r.status}`)}${r.message ? ` — ${r.message}` : ""}`;
+      if (r.status === "OK") toast.success(msg); else toast.info(msg);
+      load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
+    } finally {
+      setRunning(false);
+    }
   };
 
-  const avail = useMemo(() => availabilityRatio(results), [results]);
-  const avail24h = useMemo(() => availabilityBuckets(results, DAY, 24), [results]);
+  const avail = avail24?.availability ?? null;
+  const avail24h = useMemo(() => (avail24 ? bucketsFromReport(avail24.buckets, DAY) : []), [avail24]);
   const rt = useMemo(() => responseTimeSeries(results), [results]);
   const avgMs = useMemo(
     () => (rt.length ? Math.round(rt.reduce((a, r) => a + r.ms, 0) / rt.length) : null),
@@ -93,23 +112,23 @@ export default function CheckDetailPage() {
       .filter((r) => typeof r.perfdata?.[activePerfKey] === "number")
       .sort((a, b) => +new Date(a.checked_at) - +new Date(b.checked_at))
       .map((r) => ({
-        label: new Date(r.checked_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        label: new Date(r.checked_at).toLocaleTimeString(localeOf(lang), { hour: "2-digit", minute: "2-digit" }),
         value: r.perfdata[activePerfKey] as number,
       }));
   }, [results, activePerfKey]);
 
   if (loading) return <Loading />;
-  if (error || !check) return <ErrorState message={error ?? t("common.loadError")} />;
+  if (error || !check) return <ErrorState message={error ?? t("common.loadError")} onRetry={() => { setError(null); setLoading(true); load(); }} />;
 
   return (
     <div className="space-y-6">
-      <Link to="/checks" className="inline-flex items-center gap-1 text-sm text-ink-soft hover:text-ink">
-        <ArrowLeft className="h-4 w-4" /> Checks
+      <Link to={`/hosts/${check.host_id}`} className="inline-flex items-center gap-1 text-sm text-ink-soft hover:text-ink">
+        <ArrowLeft className="h-4 w-4" aria-hidden /> {t("cd.backToHost")}
       </Link>
       <PageHeader
         helpTopic="checks"
         title={check.name}
-        subtitle={`${check.type} · ${t("cd.interval")} ${check.interval_seconds}s · timeout ${check.timeout_seconds}s`}
+        subtitle={`${metaFor(check.type, lang).label} · ${t("cd.interval")} ${check.interval_seconds} s · ${t("cd.timeout")} ${check.timeout_seconds} s`}
         actions={
           editable && (
             <button onClick={run} disabled={running} className="btn-primary">
@@ -122,7 +141,7 @@ export default function CheckDetailPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard label={t("cd.currentStatus")} value={check.last_status ?? "UNKNOWN"} icon={Gauge}
           accent={check.last_status === "OK" ? "ok" : check.last_status === "WARNING" ? "warning" : check.last_status === "CRITICAL" ? "critical" : "unknown"} />
-        <MetricCard label={t("cd.availability")} value={formatPercent(avail, 1)} icon={Gauge} accent={avail >= 99 ? "ok" : avail >= 95 ? "warning" : "critical"} />
+        <MetricCard label={t("cd.availCard")} value={avail == null ? "—" : formatPercent(avail, 1)} icon={Gauge} accent={ACCENT_OF[availabilityStatus(avail)]} />
         <MetricCard label={t("cd.avgTime")} value={formatMs(avgMs)} icon={Timer} accent="info" />
         <MetricCard label={t("cd.results")} value={results.length} icon={History} accent="neutral" />
       </div>
@@ -143,7 +162,7 @@ export default function CheckDetailPage() {
       {perfKeys.length > 0 && (
         <Card>
           <SectionTitle
-            title="Perfdata"
+            title={t("cd.perfdata")}
             icon={Gauge}
             action={
               <select
