@@ -125,3 +125,73 @@ test("remédiation : rien n'est exécuté sans confirmation explicite", async ({
   await page.getByRole("dialog").getByRole("button", { name: "Exécuter l'action" }).click();
   await expect.poll(() => remediateCalls).toBe(1);
 });
+
+/* ---------- Lot 2 : supervision ---------- */
+
+test("dashboard : disponibilité calculée par le serveur, période modifiable", async ({ page }) => {
+  const hoursRequested: string[] = [];
+  page.on("request", (r) => {
+    const u = new URL(r.url());
+    if (u.pathname.endsWith("/dashboard/availability")) hoursRequested.push(u.searchParams.get("hours") ?? "");
+  });
+  await login(page);
+  await expect(page.getByRole("heading", { level: 1, name: "Tableau de bord" })).toBeVisible();
+  await expect.poll(() => hoursRequested.includes("24")).toBe(true);
+  await page.getByRole("group", { name: "Période" }).first().getByRole("button", { name: "7 j" }).click();
+  await expect.poll(() => hoursRequested.includes("168")).toBe(true);
+});
+
+test("hôtes : filtre d'état, tri, et suppression annulée sans requête", async ({ page }) => {
+  let deletes = 0;
+  await page.route("**/api/hosts/*", (r) => (r.request().method() === "DELETE" ? (deletes++, r.abort()) : r.continue()));
+  await login(page);
+  await page.goto("/hosts");
+  const rows = page.locator("tbody tr");
+  await expect(rows.first()).toBeVisible();
+  const total = await rows.count();
+  await page.getByRole("group", { name: "Filtrer par état" }).getByRole("button", { name: /^Opérationnel/ }).click();
+  const ok = await rows.count();
+  expect(ok).toBeLessThanOrEqual(total);
+  for (const badge of await rows.locator("td:first-child").allTextContents()) expect(badge).toContain("Opérationnel");
+  await page.getByRole("group", { name: "Filtrer par état" }).getByRole("button", { name: /^Tous/ }).click();
+  await page.getByRole("button", { name: /^Nom/ }).click();
+  const names = await rows.locator("td:nth-child(2) a").allTextContents();
+  expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  await rows.first().getByRole("button", { name: /^Supprimer/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText(names[0]);
+  await dialog.getByRole("button", { name: "Annuler" }).click();
+  expect(deletes).toBe(0);
+});
+
+test("checks : le formulaire valide localement avant tout envoi", async ({ page }) => {
+  let posts = 0;
+  await page.route("**/api/checks", (r) => (r.request().method() === "POST" ? (posts++, r.abort()) : r.continue()));
+  await login(page);
+  await page.goto("/checks");
+  await page.getByRole("button", { name: "Nouveau check" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Configuration (JSON)").fill("{ pas du json");
+  await dialog.getByRole("button", { name: "Créer le check" }).click();
+  await expect(dialog.getByText("Choisissez l'hôte à superviser.")).toBeVisible();
+  await expect(dialog.getByText("Donnez un nom au check.")).toBeVisible();
+  await expect(dialog.getByText(/config_json invalide/)).toBeVisible();
+  expect(posts).toBe(0);
+});
+
+test("checks : filtre par hôte depuis l'URL", async ({ page }) => {
+  await login(page);
+  await page.goto("/hosts");
+  const firstHost = page.locator("tbody tr td:nth-child(2) a").first();
+  const href = (await firstHost.getAttribute("href")) ?? "";
+  const hostId = href.split("/").pop();
+  await page.goto(`/checks?host=${hostId}`);
+  await expect(page.locator("#chk-host")).toHaveValue(String(hostId));
+});
+
+test("fiche hôte : 404 distinguée d'une erreur réseau", async ({ page }) => {
+  await login(page);
+  await page.goto("/hosts/999999");
+  await expect(page.getByText("Hôte introuvable")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Hôtes" }).last()).toBeVisible();
+});
