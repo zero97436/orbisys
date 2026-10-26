@@ -69,3 +69,16 @@ export function worstStatus(statuses: (CheckStatus | null | undefined)[]): Check
   }
   return "OK";
 }
+
+/** Seuils d'affichage de la disponibilité (≥ 99 % OK, ≥ 95 % avertissement, sinon critique).
+ *  Purement visuel : ne change aucun calcul SLA. null = pas de mesure -> UNKNOWN. */
+export function availabilityStatus(pct: number | null | undefined): CheckStatus {
+  if (pct == null) return "UNKNOWN";
+  if (pct >= 99) return "OK";
+  if (pct >= 95) return "WARNING";
+  return "CRITICAL";
+}
+
+export const ACCENT_OF: Record<CheckStatus, "ok" | "warning" | "critical" | "unknown"> = {
+  OK: "ok", WARNING: "warning", CRITICAL: "critical", UNKNOWN: "unknown",
+};
