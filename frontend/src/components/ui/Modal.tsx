@@ -36,6 +36,10 @@ export function Modal({
   const descId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const restore = useRef<HTMLElement | null>(null);
+  // onClose est souvent une fonction inline : la lire via une ref évite de relancer
+  // l'effet (et de voler le focus) à chaque rendu du parent.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -45,7 +49,7 @@ export function Modal({
     const first = el?.querySelector<HTMLElement>("[data-autofocus]") ?? el?.querySelector<HTMLElement>("input, select, textarea") ?? el;
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && dismissible) { e.stopPropagation(); onClose(); return; }
+      if (e.key === "Escape" && dismissible) { e.stopPropagation(); closeRef.current(); return; }
       if (e.key !== "Tab" || !el) return;
       const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((n) => n.offsetParent !== null);
       if (!items.length) { e.preventDefault(); return; }
@@ -61,7 +65,7 @@ export function Modal({
       document.body.style.overflow = overflow;
       restore.current?.focus?.();
     };
-  }, [open, dismissible, onClose]);
+  }, [open, dismissible]);
 
   if (!open) return null;
 
