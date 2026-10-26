@@ -17,7 +17,6 @@ export function buildHostViews(hosts: Host[], checks: Check[]): HostView[] {
       ...h,
       status: hc.length ? worstStatus(hc.map((c) => c.last_status ?? "UNKNOWN")) : "UNKNOWN",
       checksCount: hc.length,
-      lastCheckAt: h.updated_at,
     };
   });
 }
