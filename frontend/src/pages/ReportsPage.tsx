@@ -11,6 +11,7 @@ import { Loading } from "../components/States";
 import { availabilityBuckets, availabilityRatio } from "../lib/series";
 import { formatPercent } from "../lib/format";
 import { useI18n } from "../lib/i18n";
+import { availabilityStatus, ACCENT_OF } from "../lib/status";
 
 const DAY = 24 * 3600 * 1000;
 
@@ -97,7 +98,7 @@ export default function ReportsPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard label={t("rep.globalAvail")} value={formatPercent(avail, 2)} icon={Gauge} accent={avail >= 99 ? "ok" : avail >= 95 ? "warning" : "critical"} />
+        <MetricCard label={t("rep.globalAvail")} value={avail == null ? "—" : formatPercent(avail, 2)} icon={Gauge} accent={ACCENT_OF[availabilityStatus(avail)]} />
         <MetricCard label={t("rep.resultsAnalyzed")} value={results.length} icon={CalendarDays} accent="info" />
         <MetricCard label={t("rep.window")} value={t("rep.days30")} icon={CalendarRange} accent="neutral" />
       </div>
