@@ -147,8 +147,9 @@ class AIService:
 
         return "\n".join(kept).strip(), suggested
 
-    def chat(self, question: str, history: list[dict] | None = None, lang: str = "fr") -> dict:
-        snapshot = self._state_snapshot()
+    def chat(self, question: str, history: list[dict] | None = None, lang: str = "fr", user=None) -> dict:
+        """`user` : le contexte envoyé au modèle ne contient que son périmètre tenant."""
+        snapshot = self._state_snapshot(user)
         system = CHAT_PROMPT.format(snapshot=snapshot)
 
         # RAG : injecte les passages pertinents de la base de connaissances.
@@ -278,8 +279,10 @@ class AIService:
                     "description": f"Modifier l'hôte « {host.name} » : {changes}"}
         return None
 
-    def apply_plan(self, plan: dict) -> dict:
-        """Exécute les opérations validées (après accord humain). Revalide côté serveur."""
+    def apply_plan(self, plan: dict, user=None) -> dict:
+        """Exécute les opérations validées (après accord humain). Revalide côté serveur,
+        y compris le périmètre tenant de `user` : une opération hors périmètre est ignorée."""
+        from app.core.tenancy import host_visible, is_scoped
         from app.models.check import Check
         from app.models.host import Host
         from app.repositories.check_repo import CheckRepository
@@ -295,11 +298,23 @@ class AIService:
                 results.append({"op": o.get("op"), "status": "skipped", "detail": "opération invalide"})
                 continue
             op = norm["op"]
+            if user is not None and op != "create_host":
+                target = None
+                if op in ("update_check", "delete_check"):
+                    chk = check_repo.get(norm["check_id"])
+                    target = self.db.get(Host, chk.host_id) if chk else None
+                else:
+                    target = self.db.get(Host, norm["host_id"])
+                if not host_visible(user, target):
+                    results.append({"op": op, "status": "skipped", "detail": "hors périmètre"})
+                    continue
             try:
                 if op == "create_host":
+                    extra = {"tenant_id": user.tenant_id} if user is not None and is_scoped(user) else {}
                     host = host_repo.create(
                         name=norm["host"]["name"], hostname_or_ip=norm["host"]["hostname_or_ip"],
                         environment=norm["host"]["environment"], description="Créé via l'assistant IA",
+                        **extra,
                     )
                     for c in norm["checks"]:
                         check_repo.create(host_id=host.id, name=c["name"], type=c["type"],
@@ -332,13 +347,18 @@ class AIService:
         done = sum(1 for r in results if r["status"] == "done")
         return {"applied": done, "total": len(results), "results": results}
 
-    def _state_snapshot(self) -> str:
+    def _state_snapshot(self, user=None) -> str:
+        from app.core.tenancy import visible_host_ids
         from app.repositories.check_repo import CheckRepository
         from app.repositories.host_repo import HostRepository
         from app.services.dashboard_service import DashboardService
 
         hosts = HostRepository(self.db).list()
         checks = CheckRepository(self.db).list()
+        allowed = visible_host_ids(self.db, user) if user is not None else None
+        if allowed is not None:
+            hosts = [h for h in hosts if h.id in allowed]
+            checks = [c for c in checks if c.host_id in allowed]
         by_host: dict[int, list[Check]] = {}
         for c in checks:
             by_host.setdefault(c.host_id, []).append(c)
@@ -366,7 +386,7 @@ class AIService:
                 f"{c.last_status or 'UNKNOWN'}{thr}"
             )
 
-        incidents = DashboardService(self.db).incidents()
+        incidents = DashboardService(self.db, user).incidents()
         lines.append(f"\n## Incidents actifs ({len(incidents)})")
         for inc in incidents[:20]:
             ack = " [acquitté]" if inc.get("acknowledged") else ""
@@ -374,10 +394,11 @@ class AIService:
 
         return "\n".join(lines)
 
-    def health_summary(self, lang: str = "fr") -> dict:
+    def health_summary(self, lang: str = "fr", user=None) -> dict:
+        """Résumé santé. `user` : périmètre tenant appliqué (None = vue globale)."""
         from app.services.dashboard_service import DashboardService
 
-        svc = DashboardService(self.db)
+        svc = DashboardService(self.db, user)
         summary = svc.summary()
         incidents = svc.incidents()
         counts = summary["status_counts"]

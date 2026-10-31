@@ -46,3 +46,58 @@ def test_scoped_user_cannot_touch_other_tenant_incident(db):
     assert c.post(f"/api/dashboard/incidents/{alert_id}/analyze").status_code == 404
     r = c.post(f"/api/dashboard/incidents/{alert_id}/remediate", json={"action": "rerun_check"})
     assert r.status_code == 404
+
+
+def test_ai_summary_only_sees_own_tenant(db, monkeypatch):
+    """Le résumé IA d'un utilisateur cloisonné ne contient que les hôtes de son tenant."""
+    from app.services.ai_service import AIService
+
+    mine = Tenant(name="Client C", slug="scope-c")
+    other = Tenant(name="Client D", slug="scope-d")
+    db.add_all([mine, other])
+    db.commit()
+    h_mine = Host(name="c-visible-srv", hostname_or_ip="10.9.9.10", environment="production", tenant_id=mine.id)
+    h_other = Host(name="d-secret-srv", hostname_or_ip="10.9.9.11", environment="production", tenant_id=other.id)
+    db.add_all([h_mine, h_other])
+    db.commit()
+    for h in (h_mine, h_other):
+        ck = Check(host_id=h.id, name="ping", type="ping", last_status="CRITICAL")
+        db.add(ck)
+        db.commit()
+        db.add(Alert(check_id=ck.id, status="CRITICAL", message="down", is_active=True))
+        db.commit()
+
+    sent = {}
+    monkeypatch.setattr(AIService, "_chat", lambda self, system, user: sent.setdefault("ctx", user) or "ok")
+    c = _scoped_client(db, "op-scope-ai@local", mine.id)
+    assert c.post("/api/dashboard/ai-summary").status_code == 200
+    assert "c-visible-srv" in sent["ctx"]
+    assert "d-secret-srv" not in sent["ctx"]
+
+
+
+def test_ai_chat_and_plan_stay_in_tenant(db, monkeypatch):
+    """Le contexte du chat IA et l'application d'un plan respectent le périmètre tenant."""
+    from app.services.ai_service import AIService
+
+    mine = Tenant(name="Client E", slug="scope-e")
+    other = Tenant(name="Client F", slug="scope-f")
+    db.add_all([mine, other])
+    db.commit()
+    h_mine = Host(name="e-visible-srv", hostname_or_ip="10.9.9.20", environment="production", tenant_id=mine.id)
+    h_other = Host(name="f-secret-srv", hostname_or_ip="10.9.9.21", environment="production", tenant_id=other.id)
+    db.add_all([h_mine, h_other])
+    db.commit()
+    other_id = h_other.id
+
+    sent = {}
+    monkeypatch.setattr(AIService, "_chat_messages", lambda self, msgs: sent.setdefault("sys", msgs[0]["content"]) and "ok")
+    c = _scoped_client(db, "op-scope-chat@local", mine.id)
+    assert c.post("/api/ai/chat", json={"question": "état ?", "history": []}).status_code == 200
+    assert "e-visible-srv" in sent["sys"]
+    assert "f-secret-srv" not in sent["sys"]
+
+    r = c.post("/api/ai/apply-plan", json={"operations": [{"op": "delete_host", "host_id": other_id}]}).json()
+    assert r["applied"] == 0 and r["results"][0]["status"] == "skipped"
+    db.expire_all()
+    assert db.get(Host, other_id) is not None

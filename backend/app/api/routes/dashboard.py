@@ -133,10 +133,14 @@ def unacknowledge_incident(
 
 
 @router.post("/ai-summary")
-def ai_summary(db: Session = Depends(get_db), lang: str = Depends(get_lang)):
-    """Résumé santé global généré par l'IA (Ollama)."""
+def ai_summary(
+    db: Session = Depends(get_db),
+    lang: str = Depends(get_lang),
+    user: User = Depends(get_current_user),
+):
+    """Résumé santé généré par l'IA (Ollama), limité au périmètre de l'utilisateur."""
     try:
-        return AIService(db).health_summary(lang)
+        return AIService(db).health_summary(lang, user)
     except OllamaError as exc:
         raise HTTPException(503, str(exc))
 
