@@ -45,6 +45,9 @@ React 18, TypeScript, Vite, Tailwind 3.4, framer-motion, recharts, React Flow (t
 | P0-9 | « Dispo 24 h » calculée sur les 200 derniers résultats des 24 premiers checks (≈ 3 h, échantillon partiel) | `DashboardPage.tsx` | **Corrigé (Lot 2)** : calcul serveur |
 | P0-10 | Fiche hôte : « Uptime » = ancienneté de l'hôte dans Orbisys ; « dernier contrôle » = dernière modification | `HostCard.tsx`, `fleet.ts` | **Corrigé (Lot 2)** : libellés exacts |
 
+| P0-11 | Remédiation et analyse IA d'un incident sans contrôle du périmètre tenant (un utilisateur cloisonné pouvait agir sur l'hôte d'un autre client) | `backend/app/api/routes/dashboard.py` | **Corrigé (Lot 3)** |
+| P0-12 | Résumé IA global calculé sur tous les tenants pour un utilisateur cloisonné | `backend/app/api/routes/dashboard.py` (`ai-summary`) | Lot 5 |
+
 ### P1 — compréhension, erreurs, permissions, i18n
 - Mutations sans gestion d'erreur (≈ 15 pages) : rejet de promesse silencieux. Outils prêts : `useToast`, `apiErrorMessage`.
 - `window.confirm` / `alert()` partout (12 confirmations natives, 6 alertes). Outils prêts : `useConfirm`, `Modal`, `useToast`.

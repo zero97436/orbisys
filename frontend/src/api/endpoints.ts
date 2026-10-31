@@ -168,7 +168,7 @@ export const addBamComponent = (bsId: number, data: { check_id?: number; host_id
 export const removeBamComponent = (compId: number) => api.delete(`/bam/components/${compId}`);
 
 // --- Events (historique global) ---
-export const listEvents = (params?: { type?: string; level?: string; limit?: number; offset?: number }) =>
+export const listEvents = (params?: { type?: string; level?: string; host_id?: number; check_id?: number; limit?: number; offset?: number }) =>
   api.get<EventLog[]>("/events", { params });
 
 // --- Reports (SLA / MTTR) ---

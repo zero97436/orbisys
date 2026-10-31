@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Plus, Trash2, ExternalLink, Ticket as TicketIcon, Zap, ListChecks, X, ChevronDown, ChevronUp, Pencil, Save, MessageSquare, Send, UserCheck } from "lucide-react";
 import {
@@ -9,7 +10,11 @@ import {
 } from "../api/endpoints";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card, MotionGrid } from "../components/ui/Card";
-import { EmptyState, Loading } from "../components/States";
+import { EmptyState, ErrorState, Loading } from "../components/States";
+import { SearchInput } from "../components/ui/ListControls";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
 import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { timeAgo } from "../lib/format";
@@ -42,34 +47,58 @@ export default function TicketsPage() {
   const [form, setForm] = useState({ title: "", priority: "medium", description: "" });
 
   const [assignees, setAssignees] = useState<TicketAssignee[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [q, setQ] = useState("");
   const load = () => {
-    Promise.all([listTickets(), getTicketConfig(), listTicketAssignees()])
-      .then(([t, c, a]) => { setTickets(t.data); setConfig(c.data); setAssignees(a.data); })
+    // La configuration et les assignables sont facultatifs : un échec ne vide pas la liste.
+    Promise.all([listTickets(), getTicketConfig().catch(() => null), listTicketAssignees().catch(() => null)])
+      .then(([t, c, a]) => { setTickets(t.data); if (c) setConfig(c.data); if (a) setAssignees(a.data); setLoadError(null); })
+      .catch(() => setLoadError(tr("common.loadError")))
       .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Exécute une modification, affiche l'erreur serveur éventuelle, puis recharge. */
+  const act = async (fn: () => Promise<unknown>, okMsg?: string): Promise<boolean> => {
+    try {
+      await fn();
+      if (okMsg) toast.success(okMsg);
+      return true;
+    } catch (e) {
+      toast.error(apiErrorMessage(e, tr("common.actionFailed")));
+      return false;
+    } finally {
+      load();
+    }
+  };
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createTicket({ title: form.title, priority: form.priority, description: form.description || undefined });
+    const ok = await act(() => createTicket({ title: form.title, priority: form.priority, description: form.description || undefined }), tr("tk.created"));
+    if (!ok) return;
     setForm({ title: "", priority: "medium", description: "" });
     setShowForm(false);
-    load();
   };
-  const changeStatus = async (id: number, status: string) => { await setTicketStatus(id, status); load(); };
-  const remove = async (id: number) => { if (confirm(tr("tk.confirmDelete"))) { await deleteTicket(id); load(); } };
+  const changeStatus = (id: number, status: string) => act(() => setTicketStatus(id, status));
+  const remove = async (tk: Ticket) => {
+    const ok = await confirm({ title: tr("tk.confirmDelete"), message: tr("tk.deleteBody"), details: `#${tk.id} · ${tk.title}`, confirmLabel: tr("common.delete"), tone: "danger" });
+    if (ok) act(() => deleteTicket(tk.id), tr("tk.deleted"));
+  };
 
   const [newTask, setNewTask] = useState<Record<number, string>>({});
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const addTask = async (ticketId: number) => {
     const label = (newTask[ticketId] ?? "").trim();
     if (!label) return;
-    await addTicketTask(ticketId, label);
-    setNewTask((p) => ({ ...p, [ticketId]: "" }));
-    load();
+    if (await act(() => addTicketTask(ticketId, label))) setNewTask((p) => ({ ...p, [ticketId]: "" }));
   };
-  const toggleTask = async (taskId: number, done: boolean) => { await updateTicketTask(taskId, { done }); load(); };
-  const removeTask = async (taskId: number) => { await deleteTicketTask(taskId); load(); };
+  const toggleTask = (taskId: number, done: boolean) => act(() => updateTicketTask(taskId, { done }));
+  const removeTask = async (taskId: number, label: string) => {
+    const ok = await confirm({ title: tr("tk.deleteTaskTitle"), details: label, confirmLabel: tr("common.delete"), tone: "danger" });
+    if (ok) act(() => deleteTicketTask(taskId));
+  };
 
   // Édition inline : un ticket à la fois, brouillon local.
   const [editing, setEditing] = useState<number | null>(null);
@@ -80,9 +109,8 @@ export default function TicketsPage() {
   };
   const saveEdit = async () => {
     if (editing == null) return;
-    await updateTicket(editing, { title: draft.title, description: draft.description, priority: draft.priority });
-    setEditing(null);
-    load();
+    if (!draft.title.trim()) return;
+    if (await act(() => updateTicket(editing, { title: draft.title.trim(), description: draft.description, priority: draft.priority }), tr("common.saved"))) setEditing(null);
   };
 
   // Suivis (commentaires).
@@ -91,20 +119,25 @@ export default function TicketsPage() {
   const postComment = async (ticketId: number) => {
     const body = (newComment[ticketId] ?? "").trim();
     if (!body) return;
-    await addTicketComment(ticketId, body);
-    setNewComment((p) => ({ ...p, [ticketId]: "" }));
-    load();
+    if (await act(() => addTicketComment(ticketId, body))) setNewComment((p) => ({ ...p, [ticketId]: "" }));
   };
-  const removeComment = async (id: number) => { await deleteTicketComment(id); load(); };
-  const assign = async (ticketId: number, value: string) => {
-    await updateTicket(ticketId, { assigned_to_id: value === "" ? null : Number(value) });
-    load();
+  const removeComment = async (id: number, body: string) => {
+    const ok = await confirm({ title: tr("tk.deleteCommentTitle"), details: body.slice(0, 160), confirmLabel: tr("common.delete"), tone: "danger" });
+    if (ok) act(() => deleteTicketComment(id));
   };
+  const assign = (ticketId: number, value: string) => act(() => updateTicket(ticketId, { assigned_to_id: value === "" ? null : Number(value) }));
   const [mineOnly, setMineOnly] = useState(false);
 
+  const needle = q.trim().toLowerCase();
+  const shown = useMemo(() => {
+    const base = mineOnly ? tickets.filter((t) => t.assigned_to === user?.email) : tickets;
+    return base.filter((t) =>
+      (filter === "all" || t.status === filter) &&
+      (!needle || `#${t.id} ${t.title} ${t.description ?? ""} ${t.assigned_to ?? ""}`.toLowerCase().includes(needle)));
+  }, [tickets, mineOnly, filter, needle, user?.email]);
+
   if (loading) return <Loading />;
-  const base = mineOnly ? tickets.filter((t) => t.assigned_to === user?.email) : tickets;
-  const shown = filter === "all" ? base : base.filter((t) => t.status === filter);
+  if (loadError && !tickets.length) return <ErrorState message={loadError} onRetry={load} />;
   const counts = STATUSES.reduce((a, s) => ({ ...a, [s]: tickets.filter((t) => t.status === s).length }), {} as Record<string, number>);
 
   return (
@@ -114,7 +147,7 @@ export default function TicketsPage() {
         titleKey="page.tickets.title"
         subtitleKey="page.tickets.sub"
         actions={editable && (
-          <button onClick={() => setShowForm((s) => !s)} className="btn-primary">
+          <button type="button" onClick={() => setShowForm((s) => !s)} className="btn-primary" aria-expanded={showForm}>
             <Plus className="h-4 w-4" /> {showForm ? tr("common.cancel") : tr("tk.new")}
           </button>
         )}
@@ -148,18 +181,19 @@ export default function TicketsPage() {
       {showForm && editable && (
         <Card>
           <form onSubmit={create} className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-            <input required placeholder={tr("tk.titlePh")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input sm:col-span-3" />
-            <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="input">
+            <input required aria-label={tr("tk.titleField")} placeholder={tr("tk.titlePh")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input sm:col-span-3" />
+            <select aria-label={tr("tk.priorityPrefix")} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="input">
               {Object.entries(PRIO_KEY).map(([k, key]) => <option key={k} value={k}>{tr("tk.priorityPrefix")} : {tr(key)}</option>)}
             </select>
-            <textarea placeholder={tr("tk.descPh")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input sm:col-span-4" rows={2} />
+            <textarea aria-label={tr("common.description")} placeholder={tr("tk.descPh")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input sm:col-span-4" rows={2} />
             <button className="btn-primary sm:col-span-4">{tr("tk.createBtn")}</button>
           </form>
         </Card>
       )}
 
-      {/* Filtres */}
-      <div className="flex flex-wrap gap-2">
+      {/* Recherche et filtres */}
+      <SearchInput value={q} onChange={setQ} placeholder={tr("tk.searchPh")} className="max-w-md" />
+      <div className="flex flex-wrap gap-2" role="group" aria-label={tr("list.statusFilter")}>
         <Chip active={filter === "all"} onClick={() => setFilter("all")} label={`${tr("tk.allFilter")} (${tickets.length})`} />
         {STATUSES.map((s) => (
           <Chip key={s} active={filter === s} onClick={() => setFilter(s)} label={`${tr(STATUS_KEY[s])} (${counts[s]})`} color={STATUS_COLOR[s]} />
@@ -173,7 +207,7 @@ export default function TicketsPage() {
       </div>
 
       {shown.length === 0 ? (
-        <EmptyState message={tr("tk.empty")} />
+        <EmptyState icon={TicketIcon} message={tickets.length ? tr("list.noMatch") : tr("tk.empty")} />
       ) : (
         <MotionGrid className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((t) => (
@@ -186,6 +220,7 @@ export default function TicketsPage() {
                       value={draft.title}
                       onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                       className="input w-full font-semibold"
+                      aria-label={tr("tk.titleField")}
                       placeholder={tr("tk.titleField")}
                     />
                     <textarea
@@ -193,14 +228,15 @@ export default function TicketsPage() {
                       onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                       className="input w-full text-xs"
                       rows={6}
+                      aria-label={tr("common.description")}
                       placeholder={tr("common.description")}
                     />
                     <div className="flex items-center gap-2">
-                      <select value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value })} className="input flex-1 text-xs">
+                      <select aria-label={tr("tk.priorityPrefix")} value={draft.priority} onChange={(e) => setDraft({ ...draft, priority: e.target.value })} className="input flex-1 text-xs">
                         {Object.entries(PRIO_KEY).map(([k, key]) => <option key={k} value={k}>{tr("tk.priorityPrefix")} : {tr(key)}</option>)}
                       </select>
-                      <button onClick={() => setEditing(null)} className="btn-ghost px-2.5 py-1.5 text-xs"><X className="h-3.5 w-3.5" /> {tr("common.cancel")}</button>
-                      <button onClick={saveEdit} className="btn-primary px-2.5 py-1.5 text-xs"><Save className="h-3.5 w-3.5" /> {tr("common.save")}</button>
+                      <button type="button" onClick={() => setEditing(null)} className="btn-ghost px-2.5 py-1.5 text-xs"><X className="h-3.5 w-3.5" /> {tr("common.cancel")}</button>
+                      <button type="button" onClick={saveEdit} disabled={!draft.title.trim()} className="btn-primary px-2.5 py-1.5 text-xs"><Save className="h-3.5 w-3.5" /> {tr("common.save")}</button>
                     </div>
                   </div>
                 ) : (
@@ -213,6 +249,8 @@ export default function TicketsPage() {
                             {t.description}
                           </p>
                           <button
+                            type="button"
+                            aria-expanded={!!expanded[t.id]}
                             onClick={() => setExpanded((p) => ({ ...p, [t.id]: !p[t.id] }))}
                             className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-brand hover:underline"
                           >
@@ -223,8 +261,8 @@ export default function TicketsPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {editable && (
-                        <button onClick={() => startEdit(t)} className="btn-ghost px-2 py-1" title={tr("tk.editTicket")}>
-                          <Pencil className="h-3.5 w-3.5" />
+                        <button type="button" onClick={() => startEdit(t)} className="btn-ghost px-2 py-1" title={tr("tk.editTicket")} aria-label={`${tr("tk.editTicket")} #${t.id}`}>
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
                         </button>
                       )}
                       <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `${PRIO_COLOR[t.priority]}1f`, color: PRIO_COLOR[t.priority] }}>
@@ -242,7 +280,7 @@ export default function TicketsPage() {
                       <UserCheck className="h-3 w-3" /> {t.assigned_to}
                     </span>
                   )}
-                  {t.alert_id && <span>· {tr("tk.incident")} #{t.alert_id}</span>}
+                  {t.alert_id && <span>· <Link to={`/incidents?open=${t.alert_id}`} className="text-brand hover:underline">{tr("tk.incident")} #{t.alert_id}</Link></span>}
                   {t.created_at && <span>· {timeAgo(t.created_at)}</span>}
                   {t.created_by && <span>· {tr("tk.by")} {t.created_by}</span>}
                   {t.external_id && (
@@ -273,14 +311,16 @@ export default function TicketsPage() {
                           checked={task.done}
                           disabled={!editable}
                           onChange={(e) => toggleTask(task.id, e.target.checked)}
+                          aria-label={task.label}
                           className="h-3.5 w-3.5 accent-emerald-500"
                         />
                         <span className={cn("flex-1 text-xs", task.done ? "text-ink-faint line-through" : "text-ink-soft")}>
                           {task.label}
                         </span>
                         {editable && (
-                          <button onClick={() => removeTask(task.id)} className="opacity-0 transition-opacity group-hover:opacity-100">
-                            <X className="h-3 w-3 text-ink-faint hover:text-status-critical" />
+                          <button type="button" onClick={() => removeTask(task.id, task.label)} aria-label={`${tr("common.delete")} : ${task.label}`}
+                            className="rounded p-0.5 text-ink-faint opacity-60 transition hover:text-status-critical hover:opacity-100 focus-visible:opacity-100">
+                            <X className="h-3 w-3" aria-hidden />
                           </button>
                         )}
                       </div>
@@ -296,9 +336,10 @@ export default function TicketsPage() {
                         value={newTask[t.id] ?? ""}
                         onChange={(e) => setNewTask((p) => ({ ...p, [t.id]: e.target.value }))}
                         placeholder={tr("tk.addTask")}
+                        aria-label={tr("tk.addTask")}
                         className="input flex-1 py-1 text-xs"
                       />
-                      <button type="submit" className="btn-ghost px-2 py-1"><Plus className="h-3.5 w-3.5" /></button>
+                      <button type="submit" className="btn-ghost px-2 py-1" aria-label={tr("tk.addTask")}><Plus className="h-3.5 w-3.5" aria-hidden /></button>
                     </form>
                   )}
                 </div>
@@ -306,6 +347,8 @@ export default function TicketsPage() {
                 {/* Suivis (fil de commentaires) */}
                 <div className="mt-3 rounded-lg border border-border bg-bg-soft/40 p-2.5">
                   <button
+                    type="button"
+                    aria-expanded={!!showComments[t.id]}
                     onClick={() => setShowComments((p) => ({ ...p, [t.id]: !p[t.id] }))}
                     className="flex w-full items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-ink-faint"
                   >
@@ -324,8 +367,9 @@ export default function TicketsPage() {
                               <span className="flex items-center gap-2">
                                 {c.created_at && timeAgo(c.created_at)}
                                 {editable && (
-                                  <button onClick={() => removeComment(c.id)} className="opacity-0 transition-opacity group-hover:opacity-100">
-                                    <X className="h-3 w-3 hover:text-status-critical" />
+                                  <button type="button" onClick={() => removeComment(c.id, c.body)} aria-label={`${tr("common.delete")} : ${tr("tk.followups")}`}
+                                    className="rounded p-0.5 opacity-60 transition hover:text-status-critical hover:opacity-100 focus-visible:opacity-100">
+                                    <X className="h-3 w-3" aria-hidden />
                                   </button>
                                 )}
                               </span>
@@ -349,9 +393,10 @@ export default function TicketsPage() {
                             }}
                             rows={1}
                             placeholder={tr("tk.addFollowup")}
+                            aria-label={tr("tk.addFollowup")}
                             className="input flex-1 resize-y py-1 text-xs"
                           />
-                          <button type="submit" className="btn-ghost px-2 py-1.5"><Send className="h-3.5 w-3.5" /></button>
+                          <button type="submit" className="btn-ghost px-2 py-1.5" aria-label={tr("tk.send")}><Send className="h-3.5 w-3.5" aria-hidden /></button>
                         </form>
                       )}
                     </>
@@ -360,7 +405,7 @@ export default function TicketsPage() {
 
                 {editable && (
                   <div className="mt-3 flex items-center gap-2">
-                    <select value={t.status} onChange={(e) => changeStatus(t.id, e.target.value)} className="input flex-1 text-xs">
+                    <select aria-label={tr("tk.statusField")} value={t.status} onChange={(e) => changeStatus(t.id, e.target.value)} className="input flex-1 text-xs">
                       {STATUSES.map((s) => <option key={s} value={s}>{tr(STATUS_KEY[s])}</option>)}
                     </select>
                     <select
@@ -368,13 +413,14 @@ export default function TicketsPage() {
                       onChange={(e) => assign(t.id, e.target.value)}
                       className="input flex-1 text-xs"
                       title={tr("tk.assignTicket")}
+                      aria-label={tr("tk.assignTicket")}
                     >
                       <option value="">{tr("tk.unassigned")}</option>
                       {assignees.map((a) => (
                         <option key={a.id} value={a.id}>{a.full_name || a.email}</option>
                       ))}
                     </select>
-                    <button onClick={() => remove(t.id)} className="text-status-critical/80 hover:text-status-critical"><Trash2 className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => remove(t)} className="icon-btn h-8 w-8 hover:text-status-critical" aria-label={`${tr("common.delete")} #${t.id}`}><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
                   </div>
                 )}
               </div>
@@ -389,6 +435,8 @@ export default function TicketsPage() {
 function Chip({ active, onClick, label, color }: { active: boolean; onClick: () => void; label: string; color?: string }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
         active ? "border-brand bg-brand/15 text-brand" : "border-border text-ink-soft hover:bg-bg-soft")}

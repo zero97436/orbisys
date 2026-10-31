@@ -41,13 +41,31 @@ Captures (`_tools/shell-shots.js`) : dashboard sombre FR 1440 px, incidents clai
 | TypeScript, build | ✅ |
 | Vitest | ✅ 17/17 (ajout `liveStatus.test.ts` : détection apparition / changement / résolution) |
 | E2E (Edge) | ✅ 13/13 |
-| Pytest backend complet | ✅ 213 réussis, 2 ignorés |
+| Pytest backend complet | ✅ 211 réussis, 2 ignorés (chiffre corrigé le 31/10 : la première version de ce document indiquait 213 sans résumé vérifié) |
 
 E2E ajoutés : disponibilité serveur et changement de période ; hôtes (filtre d'état, tri, suppression annulée = 0 requête DELETE) ; checks (validation locale = 0 requête POST ; filtre `?host=`) ; fiche hôte 404.
 
 Note : `tests/test_ssh_command.py::test_unreachable_is_critical` échoue sur un Python local sans `paramiko` (le check répond UNKNOWN « paramiko non installé »). Dans l'image Docker (paramiko 3.4.1 installé) le check renvoie bien CRITICAL. Problème d'environnement, pas de régression.
 
+## Lot 3 — 31/10/2026
+
+| Vérification | Résultat |
+|---|---|
+| TypeScript, build | ✅ |
+| Vitest | ✅ 17/17 |
+| E2E (Edge) | ✅ 17/17 |
+| Pytest backend complet | ✅ 213 réussis, 2 ignorés (résumé pytest vérifié) |
+
+E2E ajoutés ou modifiés :
+- Remédiation : l'analyse s'ouvre dans la fiche (mention « hypothèse ») ; Annuler et Échap sur la confirmation ne ferment pas la fiche ; 0 appel avant confirmation, 1 après.
+- Fiche incident : chronologie et analyse présentes, réouverture depuis l'URL, fermeture par Échap.
+- Liste d'incidents : tri par priorité, filtre « non acquittés », tri par récence (données simulées `[TEST]`).
+- Maintenance : fin avant début refusée sans requête.
+- Tickets : création d'un ticket `[TEST]`, tâche, suppression annulée puis ticket supprimé avec confirmation (nettoyage).
+
+Pytest ajoutés : cloisonnement tenant des actions sur incident (reproduisait la faille avant correction : l'analyse d'un incident d'un autre tenant était lancée) ; filtre `check_id` du journal.
+
 ## Problèmes restants (lots suivants)
-- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Settings, Tickets, Bam, Knowledge, Templates, Tenants, Maintenance, Reports).
+- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Settings, Bam, Knowledge, Templates, Tenants, Reports, Chat).
 - Reports/Audit/Tenants en Community : la navigation affiche le verrou, mais les pages appellent encore une route absente (Lot 5).
 - Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`).

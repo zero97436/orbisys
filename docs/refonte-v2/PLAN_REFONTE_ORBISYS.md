@@ -29,9 +29,22 @@ Branche `refonte-app-v2`. Amélioration progressive : chaque lot est compilé, t
 
 Reporté (nécessite une évolution backend) : « dernier contrôle » par hôte — le modèle `Check` n'a pas de `last_checked_at` (migration à prévoir).
 
-## Lot 3 — Exploitation
+## Lot 3 — Exploitation ✅ terminé
 
-Liste d'incidents : tri, filtre « non acquittés », durée, actions rapides ; fiche incident (résumé, chronologie, métriques, événements corrélés, analyse IA marquée comme hypothèse, actions, historique) ; maintenance (`useConfirm`) ; tickets et événements avec gestion d'erreur. Mécanismes de déduplication, flapping, escalade et maintenance **inchangés** (backend).
+| Priorité | Changement | Fichiers | Statut |
+|---|---|---|---|
+| P0 | **Sécurité** : remédiation et analyse IA vérifient désormais le périmètre tenant (404 hors périmètre), comme l'acquittement | `routes/dashboard.py`, `tests/test_incident_scope.py` | ✅ |
+| P1 | Fiche incident (panneau, lien partageable `?open=`) : résumé, impact (dépendances déclarées), incidents corrélés, temps de réponse, analyse IA présentée comme hypothèse, actions exécutées, chronologie issue du journal | `incidents/IncidentDetail`, `IncidentCenterPage` | ✅ |
+| P1 | Liste : KPI traduits, filtre « non acquittés », tri (priorité / ancienneté), durée lisible, erreurs affichées | `IncidentCenterPage`, `AlertCard` | ✅ |
+| P1 | Maintenance : libellés, validation fin > début, confirmation de suppression, état « terminée » (auparavant affiché « planifiée ») | `MaintenancePanel` | ✅ |
+| P1 | Tickets : erreurs affichées, confirmations (ticket, tâche, suivi), boutons toujours visibles et nommés, recherche, lien vers l'incident | `TicketsPage` | ✅ |
+| P1 | Journal : erreur + réessayer, types d'événements manquants traduits, liens hôte/check, portée de la recherche explicitée | `EventsPage` | ✅ |
+| P1 | Dialogues empilés : seul le dialogue du dessus réagit au clavier | `ui/Modal` | ✅ |
+| — | `GET /events?check_id=` (ajout rétrocompatible) pour la chronologie | `routes/events.py`, `event_service.py` | ✅ |
+
+Inchangé (backend) : déduplication, flapping, escalade, suppression par dépendance et maintenance.
+
+Reporté : le résumé IA global (`POST /dashboard/ai-summary`) agrège tous les tenants pour un utilisateur cloisonné — correction à faire dans `AIService` (Lot 5).
 
 ## Lot 4 — Visualisation
 

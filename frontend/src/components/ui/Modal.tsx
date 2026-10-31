@@ -4,6 +4,10 @@ import { X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { useI18n } from "../../lib/i18n";
 
+/** Pile des dialogues ouverts : seul le plus haut réagit au clavier (Échap, Tab),
+ *  pour qu'une confirmation ouverte depuis un panneau ne ferme pas les deux. */
+const STACK: symbol[] = [];
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Boîte de dialogue accessible : role="dialog", aria-modal, piège de focus,
@@ -43,12 +47,15 @@ export function Modal({
 
   useEffect(() => {
     if (!open) return;
+    const me = Symbol("modal");
+    STACK.push(me);
     restore.current = document.activeElement as HTMLElement | null;
     const el = panel.current;
     // Focus initial : premier champ, sinon le panneau lui-même.
     const first = el?.querySelector<HTMLElement>("[data-autofocus]") ?? el?.querySelector<HTMLElement>("input, select, textarea") ?? el;
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
+      if (STACK[STACK.length - 1] !== me) return;
       if (e.key === "Escape" && dismissible) { e.stopPropagation(); closeRef.current(); return; }
       if (e.key !== "Tab" || !el) return;
       const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((n) => n.offsetParent !== null);
@@ -61,6 +68,7 @@ export function Modal({
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
+      STACK.splice(STACK.indexOf(me), 1);
       document.removeEventListener("keydown", onKey, true);
       document.body.style.overflow = overflow;
       restore.current?.focus?.();

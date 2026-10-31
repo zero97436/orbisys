@@ -69,3 +69,24 @@ Comportement backend de la remédiation inchangé (droits, licence `remediation`
 | `components/ui/HostCard.tsx`, `lib/fleet.ts` | « Supervisé depuis » au lieu d'« Uptime » ; suppression du faux « dernier contrôle » | Donnée trompeuse (P0-10) |
 | `lib/series.ts`, `charts/*` | Tranches vides = `null` (trou), libellés localisés, marges d'axes | Plus de 100 % fictif, axes lisibles |
 | `pages/GeoMapPage.tsx`, `index.css` | Fond OpenStreetMap (CARTO exige désormais une clé), thème sombre par filtre, URL configurable validée | Carte affichée à nouveau |
+
+## Lot 3 — Exploitation
+
+### Backend
+| Fichier | Changement | Justification | Risque |
+|---|---|---|---|
+| `app/api/routes/dashboard.py` | `remediate` et `analyze` appellent `_assert_alert_visible` (déjà utilisé par `ack`/`unack`) ; `analyze` reçoit l'utilisateur courant | **Faille de cloisonnement** : actions possibles sur un incident d'un autre tenant | Nul hors multi-tenant (`is_scoped` = faux) |
+| `app/api/routes/events.py`, `app/services/event_service.py` | Paramètre facultatif `check_id` | Chronologie d'un incident depuis le journal existant | Nul : paramètre optionnel |
+| `tests/test_incident_scope.py`, `tests/test_events.py` | Tests de cloisonnement (ack/analyse/remédiation → 404) et de filtre | — | — |
+
+### Frontend
+| Fichier | Changement | Justification |
+|---|---|---|
+| `components/incidents/IncidentDetail.tsx` (nouveau) | Fiche incident en panneau latéral, uniquement des données enregistrées ; IA étiquetée « hypothèse » ; actions exécutées lues dans le journal | Mission §9 et §10 |
+| `pages/IncidentCenterPage.tsx` | Fiche ouvrable par URL, filtre non acquittés, tri, KPI traduits, erreurs affichées, rafraîchissement de l'état partagé après action | Lisibilité, partage d'un incident entre opérateurs |
+| `components/ui/AlertCard.tsx` | « depuis 3 j 2 h » + date exacte au survol, bouton « Détails » | Durée lisible |
+| `components/MaintenancePanel.tsx` | Réécrit : libellés, validation, confirmation, phases (en cours / planifiée / terminée) | Bug d'affichage des maintenances terminées |
+| `pages/TicketsPage.tsx` | Erreurs, confirmations, accessibilité, recherche, lien incident | Audit §4, §6, §7 |
+| `pages/EventsPage.tsx` | Erreur + réessayer, nouveaux types, liens, portée de recherche | Audit §1, §5 |
+| `components/ui/Modal.tsx` | Pile de dialogues | Échap fermait la fiche et la confirmation ensemble |
+| `components/charts/ResponseTimeChart.tsx` | Légende traduite | i18n |

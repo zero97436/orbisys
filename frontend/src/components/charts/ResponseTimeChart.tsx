@@ -8,6 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import { AXIS, ChartTooltip } from "./ChartTooltip";
+import { useI18n } from "../../lib/i18n";
 
 export function ResponseTimeChart({
   data,
@@ -16,6 +17,7 @@ export function ResponseTimeChart({
   data: { label: string; ms: number }[];
   height?: number;
 }) {
+  const { t } = useI18n();
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -26,7 +28,7 @@ export function ResponseTimeChart({
         <Line
           type="monotone"
           dataKey="ms"
-          name="Temps de réponse"
+          name={t("chart.responseTime")}
           stroke="#3B82F6"
           strokeWidth={2}
           dot={false}

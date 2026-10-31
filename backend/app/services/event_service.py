@@ -37,6 +37,7 @@ class EventService:
         host_id: int | None = None,
         limit: int = 100,
         offset: int = 0,
+        check_id: int | None = None,
     ) -> list[EventLog]:
         stmt = select(EventLog).order_by(EventLog.created_at.desc())
         if type:
@@ -45,4 +46,6 @@ class EventService:
             stmt = stmt.where(EventLog.level == level)
         if host_id is not None:
             stmt = stmt.where(EventLog.host_id == host_id)
+        if check_id is not None:
+            stmt = stmt.where(EventLog.check_id == check_id)
         return list(self.db.scalars(stmt.limit(min(limit, 500)).offset(max(0, offset))))

@@ -32,12 +32,13 @@ def list_events(
     type: str | None = None,
     level: str | None = None,
     host_id: int | None = None,
+    check_id: int | None = None,
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    rows = EventService(db).list(type=type, level=level, host_id=host_id, limit=limit, offset=offset)
+    rows = EventService(db).list(type=type, level=level, host_id=host_id, check_id=check_id, limit=limit, offset=offset)
     allowed = visible_host_ids(db, user)
     if allowed is not None:
         # Cloisonné : uniquement les événements rattachés à un hôte du tenant.

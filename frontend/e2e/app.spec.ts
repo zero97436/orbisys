@@ -111,18 +111,28 @@ test("remédiation : rien n'est exécuté sans confirmation explicite", async ({
   await login(page);
   await page.goto("/incidents");
   await page.getByRole("button", { name: /Analyser|Analyze/ }).first().click();
-  await page.getByRole("button", { name: /Redémarrer le service/ }).click();
+  // L'analyse s'ouvre dans la fiche incident, présentée comme une hypothèse.
+  const panel = page.getByRole("dialog", { name: /\[TEST\] web-01/ });
+  await expect(panel).toContainText("hypothèse");
+  await panel.getByRole("button", { name: /Redémarrer le service/ }).click();
 
   const dialog = page.getByRole("dialog", { name: /remédiation/ });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("[TEST] web-01");
-  await expect(dialog).toContainText("hypothèse");
   await dialog.getByRole("button", { name: "Annuler" }).click();
   await expect(dialog).toHaveCount(0);
+  // Échap / Annuler sur la confirmation ne ferme pas la fiche (pile de dialogues).
+  await expect(panel).toBeVisible();
   expect(remediateCalls).toBe(0);
 
-  await page.getByRole("button", { name: /Redémarrer le service/ }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Exécuter l'action" }).click();
+  await panel.getByRole("button", { name: /Redémarrer le service/ }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: /remédiation/ })).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  expect(remediateCalls).toBe(0);
+
+  await panel.getByRole("button", { name: /Redémarrer le service/ }).click();
+  await page.getByRole("dialog", { name: /remédiation/ }).getByRole("button", { name: "Exécuter l'action" }).click();
   await expect.poll(() => remediateCalls).toBe(1);
 });
 
@@ -194,4 +204,80 @@ test("fiche hôte : 404 distinguée d'une erreur réseau", async ({ page }) => {
   await page.goto("/hosts/999999");
   await expect(page.getByText("Hôte introuvable")).toBeVisible();
   await expect(page.getByRole("link", { name: "Hôtes" }).last()).toBeVisible();
+});
+
+/* ---------- Lot 3 : exploitation ---------- */
+
+test("incidents : fiche détaillée avec chronologie réelle, lien partageable", async ({ page }) => {
+  await login(page);
+  await page.goto("/incidents");
+  await expect(page.getByText("Total actifs", { exact: false })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const details = page.getByRole("button", { name: /^Détails/ }).first();
+  if (!(await details.count())) test.skip(true, "aucun incident actif dans l'environnement de test");
+  await details.click();
+  await expect(page).toHaveURL(/open=\d+/);
+  const panel = page.getByRole("dialog");
+  await expect(panel.getByText("Chronologie (journal du check)")).toBeVisible();
+  await expect(panel.getByText("Analyse IA (hypothèse)")).toBeVisible();
+  // Rechargement : la fiche se rouvre depuis l'URL.
+  await page.reload();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page).not.toHaveURL(/open=/);
+});
+
+test("incidents : filtre « non acquittés » et tri", async ({ page }) => {
+  const now = Date.now();
+  const inc = (id: number, status: string, ack: boolean, minutes: number) => ({
+    alert_id: id, check_id: id, check_name: `[TEST] c${id}`, host_id: 1, host_name: `[TEST] h${id}`, status,
+    message: null, since: new Date(now - minutes * 60_000).toISOString(), acknowledged: ack,
+  });
+  await page.route("**/api/dashboard/incidents", (r) =>
+    r.fulfill({ json: [inc(1, "WARNING", false, 5), inc(2, "CRITICAL", true, 60), inc(3, "CRITICAL", false, 10)] }),
+  );
+  await login(page);
+  await page.goto("/incidents");
+  const hosts = () => page.locator("main a[href^='/hosts/']").allTextContents();
+  await expect.poll(hosts).toEqual(["[TEST] h3", "[TEST] h2", "[TEST] h1"]);
+  await page.getByLabel("Non acquittés uniquement").check();
+  await expect.poll(hosts).toEqual(["[TEST] h3", "[TEST] h1"]);
+  await page.getByLabel("Trier").selectOption("newest");
+  await expect.poll(hosts).toEqual(["[TEST] h1", "[TEST] h3"]);
+});
+
+test("maintenance : fin avant début refusée sans requête", async ({ page }) => {
+  let posts = 0;
+  await page.route("**/api/maintenance**", (r) => (r.request().method() === "POST" ? (posts++, r.abort()) : r.continue()));
+  await login(page);
+  await page.goto("/incidents");
+  await page.getByRole("button", { name: "Planifier" }).click();
+  await page.getByLabel("Début").fill("2030-01-02T10:00");
+  await page.getByLabel("Fin").fill("2030-01-02T09:00");
+  await page.getByRole("button", { name: "Planifier la maintenance" }).click();
+  await expect(page.getByText("La fin doit être après le début.")).toBeVisible();
+  expect(posts).toBe(0);
+});
+
+test("tickets : création, tâche, suppressions confirmées", async ({ page }) => {
+  const title = `[TEST] e2e ${Date.now()}`;
+  await login(page);
+  await page.goto("/tickets");
+  await page.getByRole("button", { name: "Nouveau ticket" }).click();
+  await page.getByLabel("Titre").first().fill(title);
+  await page.getByRole("button", { name: "Créer le ticket" }).click();
+  const card = page.locator(".card", { hasText: title });
+  await expect(card).toBeVisible();
+  await card.getByRole("textbox", { name: "Ajouter une tâche" }).fill("[TEST] vérifier");
+  await card.getByRole("button", { name: "Ajouter une tâche" }).click();
+  await expect(card.getByText("[TEST] vérifier")).toBeVisible();
+  // Suppression de tâche : annulée puis confirmée.
+  await card.getByRole("button", { name: /Supprimer : \[TEST\] vérifier/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Annuler" }).click();
+  await expect(card.getByText("[TEST] vérifier")).toBeVisible();
+  // Nettoyage : suppression du ticket avec confirmation.
+  await card.getByRole("button", { name: /^Supprimer #/ }).click();
+  await expect(page.getByRole("dialog")).toContainText(title);
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
+  await expect(page.locator(".card", { hasText: title })).toHaveCount(0);
 });
