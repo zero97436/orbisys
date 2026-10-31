@@ -50,9 +50,15 @@ Reporté : le résumé IA global (`POST /dashboard/ai-summary`) agrège tous les
 
 Les cinq P0 restants de l'audit ont été traités avant le Lot 4 : P0-4 (modules hors édition), P0-5 (purge), P0-6 (identifiants préremplis), P0-7 (mode TV : statut des tuiles, perte de connexion, plein écran, horloge localisée), P0-12 (cloisonnement tenant de toute l'IA : résumé, chat, application de plan). Le Lot 4 reprend la vue NOC à partir de cette base.
 
-## Lot 4 — Visualisation
+## Lot 4 — Visualisation ✅ terminé
 
-Vue NOC : correction `status.` (P0-7), indicateur de déconnexion et heure de dernière mise à jour, tailles adaptées au mur d'écrans, rotation/pagination, plein écran, horloge localisée. Topologie : légende, filtres, recherche, clic vers l'hôte, thème clair, relations réelles uniquement (`parent_host_id`). Opérations : badge « temps réel » retiré ou rafraîchissement réel.
+| Priorité | Changement | Fichiers | Statut |
+|---|---|---|---|
+| P0 | Vue NOC : statut des tuiles, bandeau de perte de connexion, plein écran, horloge localisée, « + N autres » (voir correctifs P0) | `TvPage` | ✅ |
+| P1 | Topologie : suppression des liens fictifs (nœud « Orbisys » → environnements → hôtes) ; environnements en cadres de regroupement, seules les dépendances déclarées (`parent_host_id`) sont reliées, disposition en couches parent → enfant | `TopologyPage` | ✅ |
+| P1 | Topologie : filtres (état, environnement, dépendances seules), recherche avec mise en évidence, légende, minimap au-delà de 30 hôtes, rendu limité au visible, clic vers la fiche hôte, thème clair, statut en texte dans chaque nœud | `TopologyPage` | ✅ |
+| P1 | Carte des opérations : rafraîchissement réel 30 s (figé pendant l'édition), heure de mise à jour au lieu du badge « temps réel », tendance 24 h serveur (au lieu de 16 checks), déplacement au clavier, réinitialisation confirmée, erreurs affichées | `OperationsMapPage` | ✅ |
+| P1 | KPI trompeurs : « 0/0 » vert sans service métier, « Hôtes en ligne » qui comptait les hôtes sains | `OperationsMapPage` | ✅ |
 
 ## Lot 5 — IA et administration
 

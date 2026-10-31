@@ -78,6 +78,19 @@ Pytest ajoutés : cloisonnement tenant des actions sur incident (reproduisait la
 - E2E : connexion sans identifiants préremplis ; modules hors édition sans requête vers une route absente (licence Community simulée) ; purge verrouillée sans le mot de confirmation exact ; mode TV (statut des tuiles, bandeau de perte de connexion).
 - Vérifié dans l'environnement de test (licence Community réelle) : 0 requête vers `/api/reports|audit|tenants` après correction du chargement de la licence dans `FeatureGate`.
 
+## Lot 4 — 31/10/2026
+
+| Vérification | Résultat |
+|---|---|
+| TypeScript, build | ✅ |
+| Vitest | ✅ 17/17 |
+| E2E (Edge) | ✅ 23/23 |
+| Pytest backend complet | ✅ 215 réussis, 2 ignorés |
+
+E2E ajoutés : topologie (nombre d'arêtes = nombre de dépendances déclarées, aucun nœud « plateforme », clic vers l'hôte) ; carte des opérations (service `[TEST]` créé puis supprimé, déplacement Maj + flèche = 50 px, annulation sans enregistrement).
+
+Vérification visuelle : topologie en thèmes sombre et clair, carte des opérations sans service métier (état vide, KPI neutres).
+
 ## Problèmes restants (lots suivants)
 - Pages non encore migrées : `alert()`/`window.confirm` subsistent (Bam, Knowledge, Templates, Tenants, Reports, Chat).
 - Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`). L'ancien Playwright de `_tools/` ne lance plus Edge (mode headless retiré) : utiliser celui de `frontend/node_modules`.

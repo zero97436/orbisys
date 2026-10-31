@@ -100,3 +100,11 @@ Comportement backend de la remédiation inchangé (droits, licence `remediation`
 | `frontend/src/pages/SettingsPage.tsx` | Purge : confirmation avec mot à retaper et fenêtres de rétention ; suppression d'utilisateur et de rôle confirmées ; plus aucun `alert()` | P0-5, règle n°13 | — |
 | `frontend/src/pages/LoginPage.tsx` | Champs vides, `htmlFor`/`autocomplete`, messages annoncés | P0-6, accessibilité | Le compte initial reste documenté dans le README |
 | `frontend/src/pages/TvPage.tsx` | Réécrit : statut des tuiles, bandeau de perte de connexion avec heure des données, écran d'erreur au premier chargement, plein écran, horloge localisée, « + N autres », polices agrandies | P0-7 | — |
+
+## Lot 4 — Visualisation
+
+| Fichier | Changement | Justification |
+|---|---|---|
+| `pages/TopologyPage.tsx` | Réécrit : nœuds personnalisés (icône + texte de statut), cadres d'environnement, arêtes = dépendances déclarées uniquement (rouges si le parent est critique), couches parent → enfant, filtres, recherche, légende, minimap, clic vers l'hôte, couleurs par variables de thème | La mission interdit une topologie fictive ; l'ancienne disposition en colonne unique faisait passer un lien derrière un autre hôte (lecture fausse) |
+| `pages/OperationsMapPage.tsx` | `usePolling` 30 s, liste figée pendant l'édition, `GET /dashboard/availability` pour la tendance, flèches pour déplacer, confirmation de réinitialisation, toasts d'erreur, KPI corrigés, textes traduits | Badge « temps réel » sans rafraîchissement ; N+1 ; glisser-déposer souris seulement |
+| `pages/TvPage.tsx` | Voir correctifs P0 | — |
