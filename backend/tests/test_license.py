@@ -163,3 +163,29 @@ def test_key_format_issued_by_licensing_service(monkeypatch):
     bad = _make_key({"plan": "business", "expires": "31/12/2099"})
     monkeypatch.setattr(cfg, "LICENSE_KEY", bad)
     assert get_license()["plan"] == "community"
+
+
+
+def test_license_key_status(monkeypatch):
+    """L'état de la clé est exposé (none / valid / expired / invalid), jamais la clé."""
+    from app.core.config import settings as cfg
+    from app.core.license import license_key_status
+
+    monkeypatch.setattr(lic_mod, "PUBLIC_KEY_HEX", _TEST_PUB_HEX)
+    monkeypatch.setattr(cfg, "LICENSE_KEY", "")
+    assert license_key_status() == "none"
+    monkeypatch.setattr(cfg, "LICENSE_KEY", _make_key({"plan": "business", "expires": "2999-01-01"}))
+    assert license_key_status() == "valid"
+    monkeypatch.setattr(cfg, "LICENSE_KEY", _make_key({"plan": "business", "expires": "2020-01-01"}))
+    assert license_key_status() == "expired"
+    monkeypatch.setattr(cfg, "LICENSE_KEY", "n-importe-quoi")
+    assert license_key_status() == "invalid"
+
+
+def test_license_endpoint_never_returns_key(client, monkeypatch):
+    from app.core.config import settings as cfg
+
+    monkeypatch.setattr(cfg, "LICENSE_KEY", "secret-key-value-123")
+    body = client.get("/api/hosts/license").text
+    assert "secret-key-value-123" not in body
+    assert '"key_status":"invalid"' in body.replace(" ", "")

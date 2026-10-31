@@ -401,3 +401,15 @@ test("assistant IA : Ollama indisponible signalé clairement", async ({ page }) 
   await page.goto("/assistant");
   await expect(page.getByRole("alert")).toContainText("ne répond pas");
 });
+
+test("licence : clé expirée expliquée, quota affiché", async ({ page }) => {
+  await page.route("**/api/hosts/license", (r) => r.fulfill({ json: {
+    plan: "community", max_hosts: 25, features: [], used: 3, customer: null, expires: null, key_status: "expired",
+  } }));
+  await login(page);
+  await page.goto("/settings");
+  const card = page.locator("#license");
+  await expect(card).toContainText("Licence expirée");
+  await expect(card).toContainText("La supervision continue normalement");
+  await expect(card).toContainText("3 / 25");
+});

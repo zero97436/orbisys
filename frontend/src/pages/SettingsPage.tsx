@@ -45,6 +45,7 @@ const CHANNEL_ICON: Record<ChannelType, typeof Mail> = {
 import { formatDate } from "../lib/format";
 import { PageHeader } from "../components/ui/PageHeader";
 import { BrandingPanel } from "../components/BrandingPanel";
+import { LicenseCard } from "../components/LicenseCard";
 import { Card, SectionTitle } from "../components/ui/Card";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 import { SystemHealthCard } from "../components/SystemHealthCard";
@@ -208,7 +209,10 @@ export default function SettingsPage() {
 
       <AccountCard />
 
-      <BrandingPanel />
+      <LicenseCard />
+
+      {/* Image de marque : modification réservée aux administrateurs (contrôle backend identique). */}
+      {admin && <BrandingPanel />}
 
       {admin && <SystemHealthCard />}
 

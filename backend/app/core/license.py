@@ -146,6 +146,19 @@ def get_license() -> dict:
     return lic
 
 
+def license_key_status() -> str:
+    """État de la clé configurée, pour l'expliquer à l'administrateur (jamais la clé) :
+    « none » (aucune clé, Community), « valid », « expired » ou « invalid »
+    (signature ou format incorrects). Dans les deux derniers cas l'édition est Community."""
+    key = settings.LICENSE_KEY or ""
+    if not key:
+        return "none"
+    payload = _verify_signature(key)
+    if not payload:
+        return "invalid"
+    return "expired" if _is_expired(payload.get("expires")) else "valid"
+
+
 def has_feature(name: str) -> bool:
     return name in get_license()["features"]
 

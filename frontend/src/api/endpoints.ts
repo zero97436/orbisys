@@ -33,6 +33,8 @@ export interface LicenseInfo {
   used: number;
   customer: string | null;
   expires: string | null;
+  /** État de la clé configurée sur le serveur (jamais la clé elle-même). */
+  key_status?: "none" | "valid" | "expired" | "invalid";
 }
 export const getLicense = () => api.get<LicenseInfo>("/hosts/license");
 export const listHosts = () => api.get<Host[]>("/hosts");
