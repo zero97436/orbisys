@@ -369,3 +369,35 @@ test("carte des opérations : placement au clavier, annulation, aucun enregistre
     await page.request.delete(`/api/bam/${created.id}`, { headers: auth });
   }
 });
+
+/* ---------- Lot 5 : IA et administration ---------- */
+
+test("assistant IA : état du modèle, réponse marquée IA, plan confirmé avant toute exécution", async ({ page }) => {
+  let applies = 0;
+  await page.route("**/api/ai/status", (r) => r.fulfill({ json: { available: true, model: "test-model", model_installed: true } }));
+  await page.route("**/api/ai/chat", (r) => r.fulfill({ json: {
+    answer: "[TEST] réponse simulée", model: "test-model", sources: [],
+    plan: { operations: [{ op: "delete_host", host_id: 999999, description: "[TEST] Supprimer l'hôte fictif", destructive: true }] },
+  } }));
+  await page.route("**/api/ai/apply-plan", (r) => { applies++; return r.fulfill({ json: { applied: 0, total: 1, results: [{ op: "delete_host", status: "skipped", detail: "[TEST]" }] } }); });
+  await login(page);
+  await page.goto("/assistant");
+  await expect(page.getByRole("status").filter({ hasText: "test-model" })).toContainText("disponible");
+  await page.getByLabel("Ex : quel hôte est en critique ?").fill("[TEST] question");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Généré par l'IA (test-model) — à vérifier")).toBeVisible();
+  await expect(page.getByText("rien n'est exécuté sans votre confirmation")).toBeVisible();
+  await page.getByRole("button", { name: /Examiner et appliquer/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("[TEST] Supprimer l'hôte fictif");
+  await expect(dialog.getByRole("button", { name: "Appliquer le plan" })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Annuler" }).click();
+  expect(applies).toBe(0);
+});
+
+test("assistant IA : Ollama indisponible signalé clairement", async ({ page }) => {
+  await page.route("**/api/ai/status", (r) => r.fulfill({ json: { available: false, model: "test-model", model_installed: false } }));
+  await login(page);
+  await page.goto("/assistant");
+  await expect(page.getByRole("alert")).toContainText("ne répond pas");
+});

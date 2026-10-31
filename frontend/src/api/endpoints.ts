@@ -369,6 +369,10 @@ export const reindexKnowledge = () => api.post<{ embedded: number }>("/knowledge
 export const importKnowledge = (data: { documents?: { title: string; content: string; source?: string }[]; markdown?: string; source?: string }) =>
   api.post<{ imported: number }>("/knowledge/import", data);
 export const importStarterPack = () => api.post<{ imported: number }>("/knowledge/starter-pack");
+/** Disponibilité du modèle local (Ollama). */
+export interface AiStatus { available: boolean; model: string; model_installed: boolean }
+export const getAiStatus = () => api.get<AiStatus>("/ai/status");
+
 export const applyPlan = (plan: AiPlan) => api.post<ApplyResult>("/ai/apply-plan", plan);
 
 // --- Users (admin) ---

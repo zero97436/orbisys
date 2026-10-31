@@ -130,3 +130,29 @@ def test_extract_action_cleans_inline_id():
     text2, suggested2 = AIService._extract_action(raw2, allowed, labels)
     assert suggested2 == "escalate"
     assert "ACTION" not in text2 and "escalate" not in text2
+
+
+
+def test_ai_status_reports_availability(client, monkeypatch):
+    import httpx
+
+    from app.core.config import settings
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"models": [{"name": f"{settings.OLLAMA_MODEL}:latest"}]}
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp())
+    data = client.get("/api/ai/status").json()
+    assert data == {"available": True, "model": settings.OLLAMA_MODEL, "model_installed": True}
+
+    def _down(*a, **k):
+        raise httpx.ConnectError("refused")
+
+    monkeypatch.setattr(httpx, "get", _down)
+    data = client.get("/api/ai/status").json()
+    assert data["available"] is False and data["model_installed"] is False
+    assert "OLLAMA_BASE_URL" not in str(data) and "http" not in str(data)

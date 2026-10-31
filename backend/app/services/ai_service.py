@@ -468,6 +468,21 @@ class AIService:
             [{"role": "system", "content": system}, {"role": "user", "content": user}]
         )
 
+    @staticmethod
+    def status() -> dict:
+        """Disponibilité du modèle local (lecture seule, délai court) : Ollama joignable ?
+        modèle configuré installé ? N'expose ni l'URL interne ni la liste des modèles."""
+        model = settings.OLLAMA_MODEL
+        try:
+            resp = httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=3)
+            resp.raise_for_status()
+            names = {m.get("name", "") for m in (resp.json().get("models") or [])}
+            installed = model in names or f"{model}:latest" in names or any(n.split(":")[0] == model for n in names)
+            return {"available": True, "model": model, "model_installed": installed}
+        except Exception as exc:  # noqa: BLE001 — l'état « indisponible » est la réponse attendue
+            logger.info("Ollama indisponible : %s", exc)
+            return {"available": False, "model": model, "model_installed": False}
+
     def _chat_messages(self, messages: list[dict]) -> str:
         url = f"{settings.OLLAMA_BASE_URL}/api/chat"
         payload = {

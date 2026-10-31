@@ -27,6 +27,12 @@ class ApplyPlanRequest(BaseModel):
     operations: list[dict[str, Any]] = Field(default_factory=list)
 
 
+@router.get("/status")
+def ai_status():
+    """L'IA locale (Ollama) répond-elle, et le modèle configuré est-il installé ?"""
+    return AIService.status()
+
+
 @router.post("/chat")
 def chat(
     payload: ChatRequest,
