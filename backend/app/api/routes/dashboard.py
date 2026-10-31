@@ -149,6 +149,7 @@ def remediate_incident(
     user: User = Depends(require_operator),
 ):
     """Exécute une action de remédiation (liste blanche) validée par l'utilisateur."""
+    _assert_alert_visible(db, user, alert_id)
     try:
         result = RemediationService(db).execute(alert_id, payload.action, user.email)
     except ValueError as exc:
@@ -159,8 +160,14 @@ def remediate_incident(
 
 
 @router.post("/incidents/{alert_id}/analyze")
-def analyze_incident(alert_id: int, db: Session = Depends(get_db), lang: str = Depends(get_lang)):
+def analyze_incident(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    lang: str = Depends(get_lang),
+    user: User = Depends(get_current_user),
+):
     """Analyse IA (Ollama) de l'incident : cause probable, impact, remédiation."""
+    _assert_alert_visible(db, user, alert_id)
     try:
         result = AIService(db).analyze_incident(alert_id, lang)
     except OllamaError as exc:
