@@ -80,6 +80,13 @@ React 18, TypeScript, Vite, Tailwind 3.4, framer-motion, recharts, React Flow (t
 - Licences : le frontend n'affiche que des verrous informatifs ; le backend reste seul juge (403).
 - Les pages non encore migrées continuent d'utiliser les anciens composants : la refonte est progressive et chaque lot est testé.
 
+## 6. Bilan de la refonte (31/10/2026)
+
+- **P0** : 12 relevés (dont 3 failles de cloisonnement tenant trouvées pendant la refonte) — **tous corrigés**.
+- **P1** : erreurs silencieuses, dialogues natifs (18 → 0), permissions d'affichage, i18n, polling dupliqué, N+1 (Dashboard, Opérations, Rapports) — corrigés ; reste une requête par check sur la fiche hôte (bornée).
+- **P2** : accessibilité — 0 violation WCAG 2.2 A/AA (axe) sur toutes les pages dans les deux thèmes ; mouvement réduit respecté ; mobile sans débordement.
+- Détail des changements : `MODIFICATIONS_FRONTEND.md` ; preuves : `TESTS_FRONTEND.md` ; suites possibles : `PLAN_REFONTE_ORBISYS.md`.
+
 ## Annexe A — textes non traduits relevés
 
 Dashboard (`"Dashboard"`, libellés KPI, `"Health Overview"`), Hosts/Checks (titres, `"Run"`), HostDetail (`"24 h"/"30 j"`, `"Aucun événement."`), CheckDetail (`"timeout"`, `"Perfdata"`), Incident (`"Critical"/"Warning"`), Tv (`"Chargement…"`, `"Quitter le mode TV"`), Apm (paragraphes FR, `"Actualiser"`), OperationsMap (`"composants OK"`, couches), Bam (catégories), GeoMap, Containers, Settings, Login (`"ou"`), Chat, LiveEventFeed (`"Live Monitoring"`), SystemHealthCard, graphiques (`"Disponibilité"`, `"Valeur"`, `"Temps de réponse"`), DiscoveryPanel.

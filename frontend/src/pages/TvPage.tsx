@@ -76,12 +76,12 @@ export default function TvPage() {
   return (
     <div className="theme-dark-vars flex min-h-screen flex-col gap-6 bg-black p-6 text-ink lg:p-8">
       {/* En-tête : marque, horloge, actions */}
-      <header className="flex items-center justify-between gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 text-ink-soft">
           <BrandLogo className="h-10 w-10 shrink-0" />
           <span className="text-2xl font-bold tracking-tight">{branding.display_name}</span>
         </div>
-        <time dateTime={now.toISOString()} className="text-5xl font-bold tabular-nums tracking-tight lg:text-6xl">
+        <time dateTime={now.toISOString()} className="order-last w-full text-center text-4xl font-bold tabular-nums tracking-tight sm:order-none sm:w-auto sm:text-5xl lg:text-6xl">
           {now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </time>
         <div className="flex items-center gap-2">

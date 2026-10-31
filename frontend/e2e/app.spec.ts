@@ -516,3 +516,28 @@ test("rapports : disponibilité calculée par le serveur (24 h, 7 j, 30 j), aucu
   await expect.poll(() => [...new Set(availability)].sort()).toEqual(["168", "24", "720"]);
   expect(perCheck).toEqual([]);
 });
+
+test.describe("responsive", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("mobile 390 px : aucune page ne défile horizontalement", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(() => localStorage.setItem("orbisys_onboarding_hidden", "1"));
+    await login(page);
+    const overflow: string[] = [];
+    for (const r of A11Y_ROUTES) {
+      await page.goto(`/${r}`);
+      await page.waitForLoadState("networkidle");
+      // On force un défilement horizontal : il ne doit pas bouger (les tableaux défilent dans leur cadre).
+      const moved = await page.evaluate(() => {
+        const m = document.getElementById("main") ?? document.scrollingElement!;
+        m.scrollLeft = 500;
+        const d = document.scrollingElement!;
+        d.scrollLeft = 500;
+        return Math.max(m.scrollLeft, d.scrollLeft);
+      });
+      if (moved > 0) overflow.push(`/${r} (+${moved}px)`);
+    }
+    expect(overflow).toEqual([]);
+  });
+});

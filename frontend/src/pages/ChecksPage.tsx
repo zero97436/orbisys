@@ -176,7 +176,7 @@ export default function ChecksPage() {
       ) : filtered.length === 0 ? (
         <EmptyState message={t("list.noMatch")} action={<button type="button" className="btn-ghost" onClick={() => { setQ(""); setStatus("ALL"); setType(""); setHostFilter(0); }}>{t("list.reset")}</button>} />
       ) : (
-        <div className="card overflow-x-auto p-0">
+        <div className="card relative overflow-x-auto p-0">
           <table className="table-std min-w-[820px]">
             <caption className="sr-only">{t("chk.title")}</caption>
             <thead>

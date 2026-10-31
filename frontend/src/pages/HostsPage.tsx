@@ -201,7 +201,7 @@ export default function HostsPage() {
           ))}
         </MotionGrid>
       ) : (
-        <div className="card overflow-x-auto p-0">
+        <div className="card relative overflow-x-auto p-0">
           <table className="table-std min-w-[760px]">
             <caption className="sr-only">{t("hosts.title")}</caption>
             <thead>

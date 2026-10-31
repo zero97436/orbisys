@@ -105,5 +105,38 @@ Vérification visuelle : topologie en thèmes sombre et clair, carte des opérat
 - Stabilité : avec 8 workers ou plus, des tests différents échouaient par délai dépassé (serveur Vite saturé) ; 2 exécutions complètes à 3 workers : 27/27 puis 28/28.
 - Un test de canal en échec avait laissé un canal `[TEST]` dans l'environnement de test : supprimé via la nouvelle route `DELETE`.
 
-## Problèmes restants (lots suivants)
+## Lot 6 — 31/10/2026
+
+| Vérification | Résultat |
+|---|---|
+| TypeScript, build | ✅ |
+| Vitest | ✅ 17/17 |
+| E2E (Edge, 3 workers) | ✅ 32/32 (deux exécutions consécutives) |
+| Pytest backend complet | ✅ 220 réussis, 2 ignorés |
+| axe-core WCAG 2.0/2.1/2.2 A+AA, 23 pages × 2 thèmes | ✅ 0 violation (7 règles en échec au départ) |
+| Mobile 390 px, 22 pages | ✅ aucun défilement horizontal (3 pages débordaient : Hôtes +321 px, Checks +332 px, TV +123 px) |
+
+Points notables :
+- Échecs intermittents de l'audit d'accessibilité analysés plutôt que relancés : une tuile capturée en plein fondu d'entrée (contraste réduit par l'opacité) → la préférence « réduire les animations » est désormais respectée par framer-motion et l'audit s'exécute dans ce mode ; puis un vrai défaut révélé par les données (badge « Avertissement » du thème clair sous 4,5:1) → couleur corrigée.
+- Débordement mobile : cause identifiée par mesure (texte `sr-only` positionné en absolu hors du conteneur de défilement), pas par supposition.
+- Les tests E2E créant des données utilisent le préfixe `[TEST]` et les suppriment ; les actions sensibles (remédiation, plans IA, purge) sont toujours simulées ou annulées.
+
+## Synthèse de la mission
+
+| Lot | Contenu | E2E cumulés |
+|---|---|---|
+| 1 Fondations | Design system, navigation, composants partagés | 8 |
+| 2 Supervision | Tableau de bord, hôtes, checks, fiches | 13 |
+| 3 Exploitation | Incidents, maintenance, tickets, journal | 17 |
+| P0 | Sécurité IA, modules hors édition, purge, connexion, TV | 21 |
+| 4 Visualisation | Topologie, carte des opérations | 23 |
+| 5 IA et administration | Assistant, licence, canaux, premiers pas | 28 |
+| 6 Finalisation | i18n, accessibilité, mobile, performance | 32 |
+
+Backend : 211 tests à la fin du Lot 2 (disponibilité serveur incluse) → 220 à la fin du Lot 6 (ajouts : journal par check, cloisonnement tenant ×3, état de l'IA, état de la clé de licence, suppression de canal).
+
+## Problèmes restants
+
+Voir « Suites possibles » dans `PLAN_REFONTE_ORBISYS.md`.
+
 - Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`). L'ancien Playwright de `_tools/` ne lance plus Edge (mode headless retiré) : utiliser celui de `frontend/node_modules`.

@@ -128,3 +128,16 @@ Comportement backend de la remédiation inchangé (droits, licence `remediation`
 | `pages/SettingsPage.tsx`, `components/BrandingPanel.tsx` | Branding admin seulement, confirmations, défilement vers `#section` |
 | `pages/BamPage.tsx`, `KnowledgePage.tsx`, `TemplatesPage.tsx`, `TenantsPage.tsx`, `ReportsPage.tsx` | Dialogues natifs remplacés, erreurs affichées, boutons nommés |
 | `playwright.config.ts` | 3 workers (stabilité sur un poste de développement) |
+
+## Lot 6 — Finalisation
+
+| Fichier | Changement | Justification | Risque |
+|---|---|---|---|
+| `index.css` | Bleu de marque par thème (sombre : plus clair, clair : plus soutenu), vert « OK » et orange « avertissement » du thème clair renforcés, palette sombre imposable (`.theme-dark-vars`), boutons primaires sur le bleu foncé | Contrastes WCAG AA (4,5:1) | Visuel : teintes légèrement ajustées ; un branding client (`--brand-rgb`) reste prioritaire |
+| `pages/ContainersPage.tsx`, `ApmPage.tsx`, `TicketsPage.tsx` | Couleurs codées en dur remplacées par les jetons de statut (`color-mix` pour les fonds teintés) | Lisibles dans les deux thèmes | — |
+| `App.tsx`, `components/ui/Card.tsx` | `MotionConfig reducedMotion="user"`, pas de fondu d'entrée si mouvement réduit | Préférence d'accessibilité ; audit stable | — |
+| `components/layout/Topbar.tsx`, `DashboardPage.tsx`, `charts/StatusDonut.tsx`, `TemplatesPage.tsx`, `SettingsPage.tsx`, `GettingStarted.tsx` | Nom accessible de la recherche, `<dl>` valide, résumé textuel de l'anneau, listes nommées, lien souligné | Règles axe en échec | — |
+| `pages/HostsPage.tsx`, `ChecksPage.tsx`, `TvPage.tsx` | Conteneur de tableau `relative` ; en-tête TV adaptatif | Débordement horizontal sur mobile | — |
+| `pages/ReportsPage.tsx` | Disponibilité serveur 24 h / 7 j / 30 j, erreur avec réessai, unités localisées | Performance et exactitude | SLA/MTTR inchangés |
+| 10 pages et composants | 36 clés i18n | Textes figés | — |
+| `package.json` | `@axe-core/playwright` (développement uniquement) | Audit WCAG automatisé | Non livré dans l'application |

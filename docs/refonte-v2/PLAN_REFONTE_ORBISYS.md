@@ -72,9 +72,27 @@ Les cinq P0 restants de l'audit ont été traités avant le Lot 4 : P0-4 (module
 | P1 | Plus aucun `alert()` / `window.confirm` dans l'application | Métier, Connaissances, Templates, Tenants, Rapports | ✅ |
 | P1 | Premiers pas : 4 étapes calculées sur les données réelles (hôte, check, canal, résultats), action directe, masquables | `GettingStarted`, `DashboardPage` | ✅ |
 
-## Lot 6 — Finalisation
+## Lot 6 — Finalisation ✅ terminé
 
-Textes restants (annexe A de l'audit), accessibilité (boutons-icônes, labels, tableaux `overflow-x-auto`, statuts non chromatiques), responsive, performances (N+1, polling), tests E2E par module, `TESTS_FRONTEND.md` final.
+| Priorité | Changement | Fichiers | Statut |
+|---|---|---|---|
+| P1 | Textes restants traduits (APM, carte, conteneurs, connexion, graphiques, connaissances, rapports, couches et icônes métier) | 10 fichiers, 36 clés | ✅ |
+| P1 | Accessibilité WCAG 2.0/2.1/2.2 A et AA : 0 violation axe-core sur les 23 pages, thèmes sombre et clair (7 règles en échec au départ) | jetons de couleur, `Topbar`, `DashboardPage`, `StatusDonut`, listes déroulantes | ✅ |
+| P1 | Mouvement réduit respecté par framer-motion (plus de fondu d'entrée) | `App.tsx`, `ui/Card.tsx` | ✅ |
+| P1 | Mobile 390 px : aucune page ne défile horizontalement (le texte `sr-only` des tableaux s'échappait de la zone de défilement : +321 px) ; en-tête du mode TV adaptatif | `HostsPage`, `ChecksPage`, `TvPage` | ✅ |
+| P1 | Performance : Rapports calculés par le serveur (3 requêtes au lieu de 31, 15 000 lignes en moins) | `ReportsPage` | ✅ |
+| — | Tests E2E d'accessibilité (par thème) et de débordement mobile ajoutés à la suite | `e2e/app.spec.ts` | ✅ |
+
+## Suites possibles (hors périmètre de la mission)
+
+| Sujet | Pourquoi | Effort |
+|---|---|---|
+| `last_checked_at` sur les checks | Afficher « dernier contrôle » par hôte (absent du modèle) | Migration + champ |
+| Notifications temps réel (WebSocket/SSE) | Remplacer l'interrogation périodique (10 à 60 s) | Moyen |
+| Formulaires restants à libellés visibles | Tenants, Connaissances, filtres d'audit : nom accessible via le texte indicatif (conforme axe, mais un libellé visible est préférable) | Faible |
+| Fiche hôte : historique par check | Encore une requête par check de l'hôte (borné, acceptable) | Faible (endpoint groupé) |
+| Fournisseur de fonds de carte | Usage commercial à grande échelle (OpenStreetMap : usage modéré) | Configuration |
+| Chromium Playwright | E2E exécutés avec Edge sur ce poste ; installer Chromium pour la CI | Faible |
 
 ## Règles transverses
 
