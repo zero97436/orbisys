@@ -34,8 +34,20 @@ L'ancienne suite échouait avant la refonte (textes « Hosts Online » disparus,
 ### Vérification visuelle
 Captures (`_tools/shell-shots.js`) : dashboard sombre FR 1440 px, incidents clair EN, fiche hôte, palette, mobile 390 px et tiroir. Aucune erreur JS. Deux réponses 404 attendues : `/api/auth/sso/info` (SSO = Enterprise, absent en Community, géré par la page de connexion).
 
+## Lot 2 — 31/10/2026
+
+| Vérification | Résultat |
+|---|---|
+| TypeScript, build | ✅ |
+| Vitest | ✅ 17/17 (ajout `liveStatus.test.ts` : détection apparition / changement / résolution) |
+| E2E (Edge) | ✅ 13/13 |
+| Pytest backend complet | ✅ 213 réussis, 2 ignorés |
+
+E2E ajoutés : disponibilité serveur et changement de période ; hôtes (filtre d'état, tri, suppression annulée = 0 requête DELETE) ; checks (validation locale = 0 requête POST ; filtre `?host=`) ; fiche hôte 404.
+
+Note : `tests/test_ssh_command.py::test_unreachable_is_critical` échoue sur un Python local sans `paramiko` (le check répond UNKNOWN « paramiko non installé »). Dans l'image Docker (paramiko 3.4.1 installé) le check renvoie bien CRITICAL. Problème d'environnement, pas de régression.
+
 ## Problèmes restants (lots suivants)
-- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Dashboard, Checks, Settings, Tickets, Bam, Knowledge, Templates, Tenants, Maintenance, Reports).
+- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Settings, Tickets, Bam, Knowledge, Templates, Tenants, Maintenance, Reports).
 - Reports/Audit/Tenants en Community : la navigation affiche le verrou, mais les pages appellent encore une route absente (Lot 5).
-- Le chiffre de disponibilité du dashboard s'affiche avec un espacement irrégulier (« 90 , 2 % ») : police monospace + espace fine insécable ; à corriger au Lot 2.
 - Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`).

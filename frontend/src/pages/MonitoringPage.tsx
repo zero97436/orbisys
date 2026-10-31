@@ -1,52 +1,49 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Activity, Server } from "lucide-react";
-import { listChecks, listHosts, getSummary } from "../api/endpoints";
-import type { Check, DashboardSummary, Host } from "../types";
+import { listChecks, listHosts } from "../api/endpoints";
 import { usePolling } from "../hooks/usePolling";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card, SectionTitle, MotionGrid } from "../components/ui/Card";
 import { HealthCard } from "../components/ui/HostCard";
 import { StatusDonut } from "../components/charts/StatusDonut";
 import { LiveEventFeed } from "../components/live/LiveEventFeed";
-import { Loading } from "../components/States";
-import { buildHostViews } from "../lib/fleet";
+import { EmptyState, ErrorState, Loading } from "../components/States";
+import { buildHostViews, SEVERITY_RANK } from "../lib/fleet";
+import { useLiveStatus } from "../lib/liveStatus";
 import { useI18n } from "../lib/i18n";
 
+/** Vue live : flux d'événements, matrice des hôtes (le plus grave d'abord), répartition des états.
+ *  Inventaire rafraîchi toutes les 15 s (pause onglet masqué) ; résumé partagé avec le shell. */
 export default function MonitoringPage() {
   const { t } = useI18n();
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const [checks, setChecks] = useState<Check[]>([]);
-  const { data: summary } = usePolling<DashboardSummary>(() => getSummary().then((r) => r.data), 15000);
-  const [ready, setReady] = useState(false);
+  const { summary } = useLiveStatus();
+  const { data, error, loading, refresh } = usePolling(
+    () => Promise.all([listHosts(), listChecks()]).then(([h, c]) => ({ hosts: h.data, checks: c.data })),
+    15000,
+  );
+  const views = useMemo(
+    () => buildHostViews(data?.hosts ?? [], data?.checks ?? []).sort((a, b) => SEVERITY_RANK[a.status] - SEVERITY_RANK[b.status] || a.name.localeCompare(b.name)),
+    [data],
+  );
 
-  const reload = () => {
-    Promise.all([listHosts(), listChecks()]).then(([h, c]) => {
-      setHosts(h.data);
-      setChecks(c.data);
-      setReady(true);
-    });
-  };
-  useEffect(() => {
-    reload();
-    const id = setInterval(reload, 15000);
-    return () => clearInterval(id);
-  }, []);
-
-  const views = useMemo(() => buildHostViews(hosts, checks), [hosts, checks]);
-
-  if (!ready) return <Loading />;
+  if (loading && !data) return <Loading />;
+  if (error && !data) return <ErrorState message={error} onRetry={refresh} />;
 
   return (
     <div className="space-y-6">
-      <PageHeader titleKey="page.monitoring.title" subtitleKey="page.monitoring.sub" />
+      <PageHeader titleKey="page.monitoring.title" subtitleKey="page.monitoring.sub" helpTopic="dashboard" />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card><LiveEventFeed height={420} /></Card>
         <Card className="lg:col-span-2">
-          <SectionTitle title={`Health Overview — ${views.length} ${t("dash.hostsTotal")}`} icon={Server} />
-          <MotionGrid className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {views.map((h) => <HealthCard key={h.id} host={h} />)}
-          </MotionGrid>
+          <SectionTitle title={`${t("dash.sec.fleet")} — ${views.length} ${t("dash.hostsTotal").toLowerCase()}`} icon={Server} />
+          {views.length === 0 ? (
+            <EmptyState icon={Server} message={t("dash.noHostsHint")} />
+          ) : (
+            <MotionGrid className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {views.map((h) => <HealthCard key={h.id} host={h} />)}
+            </MotionGrid>
+          )}
         </Card>
       </div>
 

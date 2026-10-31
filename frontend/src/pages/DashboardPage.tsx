@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   Server,
@@ -88,7 +88,12 @@ export default function DashboardPage() {
   const [periodId, setPeriodId] = useState<PeriodId>("24h");
   const period = PERIODS.find((p) => p.id === periodId)!;
   const avail = usePolling(() => getAvailability(period.hours, period.buckets).then((r) => r.data), 60000);
-  useEffect(() => { avail.refresh(); }, [periodId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Changement de période : nouveau calcul (pas au premier rendu, déjà chargé par usePolling).
+  const firstPeriod = useRef(true);
+  useEffect(() => {
+    if (firstPeriod.current) { firstPeriod.current = false; return; }
+    avail.refresh();
+  }, [periodId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dashboard personnalisable : ordre + visibilité des sections (par utilisateur).
   const [layout, setLayout] = useState<LayoutSection[]>(DEFAULT_LAYOUT);

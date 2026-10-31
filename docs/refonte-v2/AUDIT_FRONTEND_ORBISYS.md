@@ -40,7 +40,10 @@ React 18, TypeScript, Vite, Tailwind 3.4, framer-motion, recharts, React Flow (t
 | P0-5 | Purge de rétention irréversible sans confirmation | `SettingsPage.tsx` | Lot 5 |
 | P0-6 | Identifiants par défaut préremplis | `LoginPage.tsx` | Lot 5 |
 | P0-7 | TvPage : statut des tuiles vide (`t("status.")`), aucune alerte de déconnexion | `TvPage.tsx` | Lot 4 |
-| P0-8 | « Hôtes down » inclut WARNING et UNKNOWN | `DashboardPage.tsx` | Lot 2 |
+| P0-8 | « Hôtes down » inclut WARNING et UNKNOWN | `DashboardPage.tsx` | **Corrigé (Lot 2)** |
+
+| P0-9 | « Dispo 24 h » calculée sur les 200 derniers résultats des 24 premiers checks (≈ 3 h, échantillon partiel) | `DashboardPage.tsx` | **Corrigé (Lot 2)** : calcul serveur |
+| P0-10 | Fiche hôte : « Uptime » = ancienneté de l'hôte dans Orbisys ; « dernier contrôle » = dernière modification | `HostCard.tsx`, `fleet.ts` | **Corrigé (Lot 2)** : libellés exacts |
 
 ### P1 — compréhension, erreurs, permissions, i18n
 - Mutations sans gestion d'erreur (≈ 15 pages) : rejet de promesse silencieux. Outils prêts : `useToast`, `apiErrorMessage`.

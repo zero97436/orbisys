@@ -921,6 +921,8 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "cd.perfdata": { fr: "Données de performance", en: "Performance data" },
   "cd.availCard": { fr: "Disponibilité 24 h", en: "24 h availability" },
 
+  "live.title": { fr: "Événements en direct", en: "Live events" },
+
   // Remédiation : validation humaine
   "alert.suggestedAi": { fr: "suggestion IA", en: "AI suggestion" },
   "rem.confirmTitle": { fr: "Exécuter cette action de remédiation ?", en: "Run this remediation action?" },

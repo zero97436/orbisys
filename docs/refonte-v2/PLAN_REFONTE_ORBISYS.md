@@ -14,18 +14,20 @@ Branche `refonte-app-v2`. Amélioration progressive : chaque lot est compilé, t
 | Formatage localisé | `lib/format.ts`, `lib/status.ts` | Dates, durées, % selon la langue de l'app | ✅ |
 | Sécurité remédiation (P0-1) | `IncidentCenterPage`, `AlertCard` | Aucune remédiation sans confirmation (test E2E) | ✅ |
 
-## Lot 2 — Supervision
+## Lot 2 — Supervision ✅ terminé
 
-| Priorité | Changement | Fichiers | Critère d'acceptation |
+| Priorité | Changement | Fichiers | Statut |
 |---|---|---|---|
-| P0 | « Hôtes indisponibles » = CRITICAL uniquement ; UNKNOWN séparé | `DashboardPage` | Compteurs cohérents avec `hostBuckets` |
-| P1 | Dashboard branché sur `LiveStatusProvider` (rafraîchi), incidents triés par `prioritizeIncidents` | `DashboardPage` | Plus de chargement unique ; pas de double polling |
-| P1 | Dispo réelle (`availabilityInWindow`, null = « pas de données ») ; requêtes résultats limitées et tolérantes aux échecs partiels | `DashboardPage`, `lib/series.ts` | Un check en échec ne casse plus la page |
-| P1 | `alert()` → toast ; titres traduits | `DashboardPage` | 0 `alert()` |
-| P1 | Hôtes : recherche, filtres statut/environnement, tri, pagination ; `getLicense` via `useLicense` | `HostsPage` | Liste utilisable à 500 hôtes |
-| P1 | Checks : recherche, filtres, tri ; erreurs affichées ; confirmations `useConfirm` | `ChecksPage`, `CheckDetailPage` | 0 `window.confirm` |
-| P1 | Fiche hôte : sections (infos, état, services, métriques, historique, incidents) ; distinguer 404 et erreur | `HostDetailPage` | — |
-| P2 | Dates des graphiques dans la langue de l'app | `lib/series.ts`, `charts/*` | — |
+| P0 | « Hôtes critiques » = CRITICAL uniquement (WARNING/UNKNOWN ne comptent plus comme « down ») | `DashboardPage` | ✅ |
+| P0 | Disponibilité réelle calculée par le serveur sur toute la fenêtre (24 h / 7 j / 30 j), `null` = « aucune mesure » | `GET /dashboard/availability` (nouveau), `DashboardPage`, `CheckDetailPage` | ✅ |
+| P1 | Dashboard rafraîchi (LiveStatusProvider + polling 30/60 s), incidents priorisés, `alert()` → toast, réinitialisation confirmée | `DashboardPage` | ✅ |
+| P1 | Hôtes : recherche, filtres état/environnement, tri, pagination, vue tableau/cartes, formulaire en panneau avec labels et validation | `HostsPage`, `hosts/HostForm`, `ui/ListControls` | ✅ |
+| P1 | Checks : recherche, filtres état/type/hôte (`?host=`), tri, pagination, exécution avec résultat, confirmations, validation JSON/nombres | `ChecksPage`, `checks/CheckForm` | ✅ |
+| P1 | Fiche hôte : incidents liés, actions (modifier, gérer les checks), 404 distinguée, rafraîchissement, statut honnête | `HostDetailPage` | ✅ |
+| P1 | Vue Monitoring : gestion d'erreur, tri par gravité, flux partagé | `MonitoringPage`, `lib/liveStatus`, `hooks/useLiveEvents` | ✅ |
+| P2 | Dates des graphiques dans la langue de l'app, axes non tronqués | `lib/series.ts`, `charts/*` | ✅ |
+
+Reporté (nécessite une évolution backend) : « dernier contrôle » par hôte — le modèle `Check` n'a pas de `last_checked_at` (migration à prévoir).
 
 ## Lot 3 — Exploitation
 

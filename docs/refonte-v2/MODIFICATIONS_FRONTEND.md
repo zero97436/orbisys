@@ -46,3 +46,26 @@ Branche `refonte-app-v2`. Aucun contrat d'API modifié ; aucune règle de superv
 | `components/ui/AlertCard.tsx` | Action suggérée par l'IA en bouton secondaire marqué « suggestion IA » | Une hypothèse IA n'est pas présentée comme la bonne action |
 
 Comportement backend de la remédiation inchangé (droits, licence `remediation`, exécution par l'agent).
+
+## Lot 2 — Supervision
+
+### Backend (ajout, aucun contrat existant modifié)
+| Fichier | Changement | Justification | Risque |
+|---|---|---|---|
+| `app/services/dashboard_service.py`, `app/api/routes/dashboard.py` | `GET /api/dashboard/availability?hours=&buckets=&check_id=` : % de résultats OK, global et par tranche, sur les checks visibles (cloisonnement tenant appliqué) | Même formule que l'affichage précédent, mais sur **tous** les résultats de la fenêtre au lieu d'un échantillon tronqué ; supprime 24 requêtes N+1 | Faible : lecture seule, requêtes agrégées indexées (`checked_at`) |
+| `tests/test_dashboard_availability.py` | 4 tests (fenêtre, bornes, absence de données, filtre par check) | — | — |
+
+### Frontend
+| Fichier | Changement | Justification |
+|---|---|---|
+| `pages/DashboardPage.tsx` | Réécrit : LiveStatusProvider, disponibilité serveur avec période 24 h / 7 j / 30 j, KPI cliquables et traduits, « hôtes critiques » corrects, incidents priorisés, filtre « à traiter » de la flotte, état vide avec action, toasts et confirmation | Données exactes et à jour ; P0-8, P0-9 |
+| `pages/HostsPage.tsx`, `components/hosts/HostForm.tsx` | Tableau triable/filtrable/paginé + vue cartes ; formulaire en panneau latéral, sections, labels, validation (coordonnées, port), erreurs serveur (quota) dans le formulaire ; mot de passe SSH jamais réaffiché, vide = conservé | Liste exploitable à grande échelle ; plus de piège de suppression du mot de passe |
+| `pages/ChecksPage.tsx`, `components/checks/CheckForm.tsx` | Idem ; filtre `?host=` ; exécution manuelle avec résultat en toast ; validation JSON / nombres alignée sur le backend (intervalle ≥ 5 s) ; sondes distribuées marquées « Business » | Plus de `alert()`, plus d'erreurs silencieuses |
+| `pages/HostDetailPage.tsx` | Incidents liés, actions, parent cliquable, 404 vs erreur réseau, rafraîchissement 30 s, historique avec statut en texte | Fiche d'intervention |
+| `pages/CheckDetailPage.tsx` | Disponibilité 24 h serveur, textes traduits, erreurs d'exécution affichées | Chiffre exact |
+| `pages/MonitoringPage.tsx`, `lib/liveStatus.tsx`, `hooks/useLiveEvents.ts`, `components/live/LiveEventFeed.tsx` | Flux d'événements dérivé du relevé partagé (plus de polling 8 s séparé, historique conservé entre pages), gestion d'erreur, `role="log"` | Performance, accessibilité |
+| `components/ui/ListControls.tsx` (nouveau) | `SearchInput`, `FilterChips`, `Pagination`, `paginate` | Remplace 5 copies de champ de recherche |
+| `components/ui/Modal.tsx` | `onClose` lu via ref | **Bug** : le focus sautait au premier champ à chaque rendu du parent (rafraîchissement, saisie) |
+| `components/ui/HostCard.tsx`, `lib/fleet.ts` | « Supervisé depuis » au lieu d'« Uptime » ; suppression du faux « dernier contrôle » | Donnée trompeuse (P0-10) |
+| `lib/series.ts`, `charts/*` | Tranches vides = `null` (trou), libellés localisés, marges d'axes | Plus de 100 % fictif, axes lisibles |
+| `pages/GeoMapPage.tsx`, `index.css` | Fond OpenStreetMap (CARTO exige désormais une clé), thème sombre par filtre, URL configurable validée | Carte affichée à nouveau |
