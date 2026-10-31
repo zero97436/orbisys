@@ -9,9 +9,15 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { Card, SectionTitle, MotionGrid } from "../components/ui/Card";
 import { Loading } from "../components/States";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
+
 
 export default function TenantsPage() {
   const { t: tr } = useI18n();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [hosts, setHosts] = useState<Host[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -33,10 +39,10 @@ export default function TenantsPage() {
     setName("");
     load();
   };
-  const remove = async (id: number) => {
-    if (confirm(tr("ten.confirmDelete"))) {
-      await deleteTenant(id); load();
-    }
+  const remove = async (id: number, name: string) => {
+    if (!(await confirm({ title: tr("ten.confirmDelete"), message: tr("ten.deleteBody"), details: name, confirmLabel: tr("common.delete"), tone: "danger" }))) return;
+    try { await deleteTenant(id); } catch (e) { toast.error(apiErrorMessage(e, tr("common.actionFailed"))); }
+    load();
   };
   const setHost = async (host_id: number, tenant_id: number) => {
     await assignHostTenant(host_id, tenant_id || null); load();
@@ -85,7 +91,7 @@ export default function TenantsPage() {
                   <p className="text-xs text-ink-faint">{t.slug}</p>
                 </div>
               </div>
-              <button onClick={() => remove(t.id)} className="text-status-critical/70 hover:text-status-critical"><Trash2 className="h-4 w-4" /></button>
+              <button type="button" onClick={() => remove(t.id, t.name)} className="icon-btn h-8 w-8 hover:text-status-critical" aria-label={`${tr("common.delete")} ${t.name}`}><Trash2 className="h-4 w-4" aria-hidden /></button>
             </div>
             <div className="mt-3 flex gap-4 text-xs text-ink-soft">
               <span className="flex items-center gap-1"><Server className="h-3.5 w-3.5" /> {t.hosts} {tr("ten.hostsCount")}</span>

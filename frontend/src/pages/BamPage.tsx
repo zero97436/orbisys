@@ -14,9 +14,15 @@ import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { cn } from "../lib/cn";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
+
 
 export default function BamPage() {
   const { t } = useI18n();
+  const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const editable = canEdit(user);
   const [services, setServices] = useState<BamService[]>([]);
@@ -43,8 +49,16 @@ export default function BamPage() {
     load();
   };
   const addComp = async (bsId: number, checkId: number) => { await addBamComponent(bsId, { check_id: checkId }); load(); };
-  const delComp = async (id: number) => { await removeBamComponent(id); load(); };
-  const delSvc = async (id: number) => { if (confirm(t("bam.confirmDelete"))) { await deleteBamService(id); load(); } };
+  const delComp = async (id: number, label: string) => {
+    if (!(await confirm({ title: t("bam.removeCompTitle"), details: label, confirmLabel: t("common.delete"), tone: "danger" }))) return;
+    try { await removeBamComponent(id); } catch (e) { toast.error(apiErrorMessage(e, t("common.actionFailed"))); }
+    load();
+  };
+  const delSvc = async (id: number, label: string) => {
+    if (!(await confirm({ title: t("bam.confirmDelete"), details: label, confirmLabel: t("common.delete"), tone: "danger" }))) return;
+    try { await deleteBamService(id); } catch (e) { toast.error(apiErrorMessage(e, t("common.actionFailed"))); }
+    load();
+  };
 
   if (loading) return <Loading />;
   const checkName = new Map(checks.map((c) => [c.id, c.name]));
@@ -115,7 +129,7 @@ export default function BamPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={s.status} />
-                    {editable && <button onClick={() => delSvc(s.id)} className="text-status-critical/80 hover:text-status-critical"><Trash2 className="h-4 w-4" /></button>}
+                    {editable && <button type="button" onClick={() => delSvc(s.id, s.name)} className="icon-btn h-8 w-8 hover:text-status-critical" aria-label={`${t("common.delete")} ${s.name}`}><Trash2 className="h-4 w-4" aria-hidden /></button>}
                   </div>
                 </div>
                 <p className="mb-2 text-xs text-ink-faint">
@@ -126,7 +140,7 @@ export default function BamPage() {
                     <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border bg-bg-soft/50 px-2.5 py-1.5 text-sm">
                       <StatusDot status={c.status} />
                       <span className="flex-1 truncate text-ink-soft">{c.label}</span>
-                      {editable && <button onClick={() => delComp(c.id)} className="text-ink-faint hover:text-status-critical"><X className="h-3.5 w-3.5" /></button>}
+                      {editable && <button type="button" onClick={() => delComp(c.id, (c.check_id != null && checkName.get(c.check_id)) || `#${c.id}`)} className="rounded p-0.5 text-ink-faint hover:text-status-critical" aria-label={`${t("common.delete")} : ${(c.check_id != null && checkName.get(c.check_id)) || `#${c.id}`}`}><X className="h-3.5 w-3.5" aria-hidden /></button>}
                     </div>
                   ))}
                   {s.components.length === 0 && <p className="text-xs text-ink-faint">{t("bam.noComponent")}</p>}

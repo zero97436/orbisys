@@ -11,6 +11,8 @@ import { Loading } from "../components/States";
 import { availabilityBuckets, availabilityRatio } from "../lib/series";
 import { formatPercent } from "../lib/format";
 import { useI18n } from "../lib/i18n";
+import { useToast } from "../components/ui/Toast";
+import { apiError, apiErrorMessage } from "../lib/apiError";
 import { availabilityStatus, ACCENT_OF } from "../lib/status";
 
 const DAY = 24 * 3600 * 1000;
@@ -29,6 +31,7 @@ function slaAccent(av: number): "ok" | "warning" | "critical" {
 
 export default function ReportsPage() {
   const { t } = useI18n();
+  const toast = useToast();
   const [results, setResults] = useState<CheckResult[]>([]);
   const [sla, setSla] = useState<SlaReport | null>(null);
   const [mttr, setMttr] = useState<MttrReport | null>(null);
@@ -69,9 +72,8 @@ export default function ReportsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      if ((e as { response?: { status?: number } })?.response?.status === 403) {
-        alert(t("rep.pdfProOnly"));
-      }
+      if (apiError(e).status === 403) toast.info(t("rep.pdfProOnly"));
+      else toast.error(apiErrorMessage(e, t("common.actionFailed")));
     } finally {
       setExporting(false);
     }

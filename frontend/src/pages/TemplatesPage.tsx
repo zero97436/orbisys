@@ -12,9 +12,15 @@ import { Loading } from "../components/States";
 import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
+
 
 export default function TemplatesPage() {
   const { t: tr } = useI18n();
+  const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const editable = canEdit(user);
   const [templates, setTemplates] = useState<CheckTemplate[]>([]);
@@ -51,11 +57,10 @@ export default function TemplatesPage() {
     load();
   };
 
-  const remove = async (id: number) => {
-    if (confirm(tr("tpl.confirmDelete"))) {
-      await deleteCheckTemplate(id);
-      load();
-    }
+  const remove = async (id: number, name: string) => {
+    if (!(await confirm({ title: tr("tpl.confirmDelete"), details: name, confirmLabel: tr("common.delete"), tone: "danger" }))) return;
+    try { await deleteCheckTemplate(id); } catch (e) { toast.error(apiErrorMessage(e, tr("common.actionFailed"))); }
+    load();
   };
 
   if (loading) return <Loading />;
@@ -108,7 +113,7 @@ export default function TemplatesPage() {
                   </div>
                 </div>
                 {editable && (
-                  <button onClick={() => remove(t.id)} className="text-status-critical/70 hover:text-status-critical">
+                  <button type="button" onClick={() => remove(t.id, t.name)} className="icon-btn h-8 w-8 hover:text-status-critical" aria-label={`${tr("common.delete")} ${t.name}`}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}

@@ -1121,6 +1121,9 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "ch.f.from": { fr: "Numéro expéditeur", en: "Sender number" },
   "ch.f.command": { fr: "Commande", en: "Command" },
 
+  "bam.removeCompTitle": { fr: "Retirer ce composant du service ?", en: "Remove this component from the service?" },
+  "ten.deleteBody": { fr: "Ses hôtes et utilisateurs ne seront plus rattachés à aucun tenant (visibles par le personnel global uniquement).", en: "Its hosts and users will no longer belong to any tenant (visible to global staff only)." },
+
   // Remédiation : validation humaine
   "alert.suggestedAi": { fr: "suggestion IA", en: "AI suggestion" },
   "rem.confirmTitle": { fr: "Exécuter cette action de remédiation ?", en: "Run this remediation action?" },
