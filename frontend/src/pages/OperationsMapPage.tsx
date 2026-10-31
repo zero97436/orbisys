@@ -8,18 +8,23 @@ import {
   AlertTriangle, ArrowUpRight, Move, Save, RotateCcw, X, type LucideIcon,
 } from "lucide-react";
 import {
-  listBam, getSummary, getIncidents, listHosts, listChecks, listResults,
+  listBam, getSummary, getIncidents, listHosts, listChecks, getAvailability,
   saveBamLayout, type BamService,
 } from "../api/endpoints";
-import type { Check, CheckResult, CheckStatus, DashboardSummary, Host, Incident } from "../types";
+import type { CheckStatus } from "../types";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { Card, SectionTitle } from "../components/ui/Card";
 import { AvailabilityChart } from "../components/charts/AvailabilityChart";
 import { ErrorState, SkeletonGrid } from "../components/States";
-import { statusMeta } from "../lib/status";
+import { availabilityStatus, statusMeta } from "../lib/status";
 import { buildHostViews } from "../lib/fleet";
-import { availabilityBuckets } from "../lib/series";
+import { bucketsFromReport } from "../lib/series";
+import { localeOf } from "../lib/format";
+import { usePolling } from "../hooks/usePolling";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
 import { formatPercent } from "../lib/format";
 import { cn } from "../lib/cn";
 import { useAuth } from "../lib/auth";
@@ -42,18 +47,11 @@ const LAYER_ORDER = ["Applications métier", "Back-Office", "Infrastructure", "G
 type XY = { x: number; y: number };
 
 export default function OperationsMapPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { user } = useAuth();
   const editable = canEdit(user);
-
-  const [bam, setBam] = useState<BamService[]>([]);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const [checks, setChecks] = useState<Check[]>([]);
-  const [results, setResults] = useState<CheckResult[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [edit, setEdit] = useState(false);
   const [pos, setPos] = useState<Record<number, XY>>({});
@@ -62,23 +60,18 @@ export default function OperationsMapPage() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: number; dx: number; dy: number } | null>(null);
 
-  const load = async () => {
-    const [b, s, i, h, c] = await Promise.all([
-      listBam(), getSummary(), getIncidents(), listHosts(), listChecks(),
+  // Rafraîchissement réel toutes les 30 s (pause onglet masqué). La disponibilité 24 h
+  // vient du calcul serveur (tous les checks), plus d'un échantillon de 16 checks.
+  const { data, error, loading, refresh } = usePolling(async () => {
+    const [b, s, i, h, c, a] = await Promise.all([
+      listBam(), getSummary(), getIncidents(), listHosts(), listChecks(), getAvailability(24, 24),
     ]);
-    setBam(b.data);
-    setSummary(s.data);
-    setIncidents(i.data);
-    setHosts(h.data);
-    setChecks(c.data);
-    const sample = c.data.slice(0, 16);
-    const res = await Promise.all(sample.map((ch: Check) => listResults(ch.id, 120)));
-    setResults(res.flatMap((r) => r.data));
-  };
-
-  useEffect(() => {
-    load().catch(() => setError(t("common.loadError"))).finally(() => setLoading(false));
-  }, []);
+    return { bam: b.data, summary: s.data, incidents: i.data, hosts: h.data, checks: c.data, avail: a.data, at: Date.now() };
+  }, 30000);
+  // Pendant l'édition, on fige la liste : un rafraîchissement ne doit pas écraser le placement en cours.
+  const [bam, setBam] = useState<BamService[]>([]);
+  useEffect(() => { if (data && !edit) setBam(data.bam); }, [data, edit]);
+  const load = async () => { refresh(); };
 
   // Placement auto par couche (fallback quand pas de position enregistrée).
   const autoLayout = useMemo<Record<number, XY>>(() => {
@@ -121,7 +114,7 @@ export default function OperationsMapPage() {
     return Math.max(520, maxY + TILE_H + PAD);
   }, [pos]);
 
-  const traffic = useMemo(() => availabilityBuckets(results, DAY, 24), [results]);
+  const traffic = useMemo(() => (data ? bucketsFromReport(data.avail.buckets, DAY) : []), [data]);
 
   /* ---- drag handlers ---- */
   const onDown = (e: React.PointerEvent, id: number) => {
@@ -144,22 +137,43 @@ export default function OperationsMapPage() {
     setDirty(true);
   };
   const onUp = () => { drag.current = null; };
+  // Alternative clavier au glisser-déposer : flèches = 10 px, Maj + flèches = 50 px.
+  const onKey = (e: React.KeyboardEvent, id: number) => {
+    if (!edit) return;
+    const step = e.shiftKey ? 50 : 10;
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    setPos((prev) => {
+      const p = prev[id] ?? { x: PAD, y: PAD };
+      return { ...prev, [id]: { x: Math.max(0, p.x + d[0]), y: Math.max(0, p.y + d[1]) } };
+    });
+    setDirty(true);
+  };
 
   const save = async () => {
     setSaving(true);
     try {
       await saveBamLayout(bam.map((s) => ({ id: s.id, pos_x: Math.round(pos[s.id].x), pos_y: Math.round(pos[s.id].y) })));
-      await load();
+      toast.success(t("common.saved"));
       setEdit(false);
+      await load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
     } finally {
       setSaving(false);
     }
   };
   const reset = async () => {
+    // Enregistré immédiatement pour tous les utilisateurs : confirmation explicite.
+    if (!(await confirm({ title: t("ops.resetTitle"), message: t("ops.resetBody"), confirmLabel: t("ops.auto"), tone: "primary" }))) return;
     setSaving(true);
     try {
       await saveBamLayout(bam.map((s) => ({ id: s.id, pos_x: null, pos_y: null })));
+      setEdit(false);
       await load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
     } finally {
       setSaving(false);
     }
@@ -172,9 +186,9 @@ export default function OperationsMapPage() {
     setEdit(false);
   };
 
-  if (loading) return <SkeletonGrid count={6} />;
-  if (error) return <ErrorState message={error} />;
-  if (!summary) return null;
+  if (loading && !data) return <SkeletonGrid count={6} />;
+  if (!data) return <ErrorState message={error ?? t("common.loadError")} onRetry={refresh} />;
+  const { summary, incidents, hosts, checks } = data;
 
   const c = summary.status_counts;
   const okServices = bam.filter((s) => s.status === "OK").length;
@@ -182,7 +196,7 @@ export default function OperationsMapPage() {
   const hostViews = buildHostViews(hosts, checks);
   const hostsUp = hostViews.filter((h) => h.status === "OK").length;
   const svcTotal = (c.OK ?? 0) + (c.WARNING ?? 0) + (c.CRITICAL ?? 0) + (c.UNKNOWN ?? 0);
-  const checksHealth = svcTotal ? ((c.OK ?? 0) / svcTotal) * 100 : 100;
+  const checksHealth = svcTotal ? ((c.OK ?? 0) / svcTotal) * 100 : null;
 
   const overall: CheckStatus =
     koServices > 0 ? "CRITICAL"
@@ -223,9 +237,9 @@ export default function OperationsMapPage() {
 
       {/* KPI */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiTile label={t("ops.kpi.servicesOk")} value={`${okServices}/${bam.length}`} icon={Briefcase} tone={koServices ? "critical" : "ok"} />
-        <KpiTile label={t("ops.kpi.checksHealth")} value={formatPercent(checksHealth, 1)} icon={Activity} tone={checksHealth >= 99 ? "ok" : checksHealth >= 95 ? "warning" : "critical"} />
-        <KpiTile label={t("ops.kpi.hostsOnline")} value={`${hostsUp}/${hosts.length}`} icon={Server} tone={hostsUp === hosts.length ? "ok" : "warning"} />
+        <KpiTile label={t("ops.kpi.servicesOk")} value={bam.length ? `${okServices}/${bam.length}` : "—"} icon={Briefcase} tone={!bam.length ? "muted" : koServices ? "critical" : okServices === bam.length ? "ok" : "warning"} />
+        <KpiTile label={t("ops.kpi.checksHealth")} value={checksHealth == null ? "—" : formatPercent(checksHealth, 1)} icon={Activity} tone={({ OK: "ok", WARNING: "warning", CRITICAL: "critical", UNKNOWN: "muted" } as const)[availabilityStatus(checksHealth)]} />
+        <KpiTile label={t("ops.kpi.hostsOnline")} value={`${hostsUp}/${hosts.length}`} icon={Server} tone={!hosts.length ? "muted" : hostsUp === hosts.length ? "ok" : "warning"} />
         <KpiTile label={t("ops.kpi.activeIncidents")} value={incidents.length} icon={AlertTriangle} tone={incidents.length ? "critical" : "ok"} />
       </div>
 
@@ -240,8 +254,9 @@ export default function OperationsMapPage() {
           </div>
           {edit
             ? <span className="rounded-full bg-brand/15 px-3 py-1.5 text-xs font-medium text-brand">{t("ops.editMode")}</span>
-            : <span className="hidden items-center gap-2 rounded-full bg-bg-soft px-3 py-1.5 text-xs text-ink-soft sm:flex">
-                <span className={cn("h-2 w-2 rounded-full", overall !== "OK" && "animate-pulse")} style={{ background: meta.color }} /> {t("ops.realtime")}
+            : <span className={cn("hidden items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:flex", error ? "bg-status-warning/15 text-status-warning" : "bg-bg-soft text-ink-soft")}
+                role="status" title={t("ops.refreshEvery")}>
+                {error ? t("live.staleShort") : t("live.updated")} {new Date(data.at).toLocaleTimeString(localeOf(lang), { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
               </span>}
         </div>
 
@@ -270,7 +285,11 @@ export default function OperationsMapPage() {
                   <div
                     key={s.id}
                     onPointerDown={(e) => onDown(e, s.id)}
-                    className={cn("absolute", edit ? "cursor-move touch-none" : "")}
+                    onKeyDown={(e) => onKey(e, s.id)}
+                    tabIndex={edit ? 0 : undefined}
+                    role={edit ? "button" : undefined}
+                    aria-label={edit ? `${s.name} — ${t("ops.moveHint")}` : undefined}
+                    className={cn("absolute rounded-xl", edit ? "cursor-move touch-none focus-visible:ring-2 focus-visible:ring-brand" : "")}
                     style={{ left: p.x, top: p.y, width: TILE_W }}
                   >
                     <ServiceTile svc={s} interactive={!edit} />
@@ -297,6 +316,7 @@ function idx(layer: string): number {
 
 /* ---------- Tuile ---------- */
 function ServiceTile({ svc, interactive }: { svc: BamService; interactive: boolean }) {
+  const { t } = useI18n();
   const meta = statusMeta(svc.status);
   const Icon = (svc.icon && ICONS[svc.icon]) || Boxes;
   const ratio = svc.total ? (svc.ok_count / svc.total) * 100 : 0;
@@ -306,7 +326,7 @@ function ServiceTile({ svc, interactive }: { svc: BamService; interactive: boole
       {interactive && <ArrowUpRight className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />}
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg" style={{ background: `${meta.color}26`, color: meta.color }}>
-          <Icon className="h-5 w-5" />
+          <Icon className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-ink">{svc.name}</p>
@@ -318,7 +338,7 @@ function ServiceTile({ svc, interactive }: { svc: BamService; interactive: boole
       </div>
       <div className="mt-3">
         <div className="mb-1 flex items-center justify-between text-[11px] text-ink-faint">
-          <span>{svc.ok_count}/{svc.total} composants OK</span>
+          <span>{svc.ok_count}/{svc.total} {t("ops.componentsOk")}</span>
           <span className="tabular-nums">{formatPercent(ratio, 0)}</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/30">
@@ -342,16 +362,18 @@ function ServiceTile({ svc, interactive }: { svc: BamService; interactive: boole
 }
 
 /* ---------- KPI ---------- */
-const TONE: Record<string, string> = { ok: "#10B981", warning: "#F59E0B", critical: "#EF4444" };
+const TONE: Record<string, string> = {
+  ok: "rgb(var(--st-ok))", warning: "rgb(var(--st-warning))", critical: "rgb(var(--st-critical))", muted: "rgb(var(--st-unknown))",
+};
 function KpiTile({ label, value, icon: Icon, tone }: { label: string; value: string | number; icon: LucideIcon; tone: string }) {
-  const color = TONE[tone] ?? "#64748B";
+  const color = TONE[tone] ?? TONE.muted;
   return (
     <div className="card flex items-center gap-3 p-4">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style={{ background: `${color}1f`, color }}>
-        <Icon className="h-5 w-5" />
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-bg-soft" style={{ color }}>
+        <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-2xl font-bold leading-none tabular-nums" style={{ color }}>{value}</p>
+        <p className="text-2xl font-bold leading-none" style={{ color }}>{value}</p>
         <p className="mt-1 truncate text-[11px] uppercase tracking-wide text-ink-faint">{label}</p>
       </div>
     </div>

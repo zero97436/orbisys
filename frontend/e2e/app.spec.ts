@@ -330,3 +330,42 @@ test("P0-7 : mode TV — statut des tuiles et bandeau de perte de connexion", as
   await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
   await expect(page.getByRole("alert")).toContainText("Connexion perdue");
 });
+
+/* ---------- Lot 4 : visualisation ---------- */
+
+test("topologie : seules les dépendances déclarées sont reliées, clic vers l'hôte", async ({ page }) => {
+  await login(page);
+  await page.goto("/topology");
+  const nodes = page.locator(".react-flow__node-host");
+  await expect(nodes.first()).toBeVisible();
+  // Arêtes = uniquement des dépendances parent → enfant (aucun nœud « plateforme » fictif).
+  const hosts = await page.request.get("/api/hosts", { headers: { Authorization: `Bearer ${await page.evaluate(() => localStorage.getItem("sh_token") ?? "")}` } });
+  const declared = (await hosts.json()).filter((h: { parent_host_id: number | null }) => h.parent_host_id).length;
+  await expect(page.locator(".react-flow__edge")).toHaveCount(declared);
+  await expect(page.getByText("Orbisys", { exact: true }).locator("xpath=ancestor::*[contains(@class,'react-flow__node')]")).toHaveCount(0);
+  await nodes.first().click();
+  await expect(page).toHaveURL(/\/hosts\/\d+$/);
+});
+
+test("carte des opérations : placement au clavier, annulation, aucun enregistrement implicite", async ({ page }) => {
+  const token = async () => page.evaluate(() => localStorage.getItem("sh_token") ?? "");
+  await login(page);
+  const auth = { Authorization: `Bearer ${await token()}` };
+  const created = await (await page.request.post("/api/bam", { headers: auth, data: { name: "[TEST] e2e service", category: "Général" } })).json();
+  let layoutSaves = 0;
+  await page.route("**/api/bam/layout", (r) => { layoutSaves++; return r.continue(); });
+  try {
+    await page.goto("/operations");
+    await page.getByRole("button", { name: "Réorganiser" }).click();
+    const tile = page.getByRole("button", { name: /\[TEST\] e2e service/ });
+    const before = await tile.boundingBox();
+    await tile.focus();
+    await page.keyboard.press("Shift+ArrowRight");
+    const after = await tile.boundingBox();
+    expect(Math.round((after!.x - before!.x))).toBe(50);
+    await page.getByRole("button", { name: "Annuler" }).click();
+    expect(layoutSaves).toBe(0);
+  } finally {
+    await page.request.delete(`/api/bam/${created.id}`, { headers: auth });
+  }
+});

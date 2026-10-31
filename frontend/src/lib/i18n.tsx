@@ -201,11 +201,11 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "page.audit.title": { fr: "Audit", en: "Audit" },
   "page.audit.sub": { fr: "Journal d'audit — qui a fait quoi, quand, depuis où (enregistrements immuables)", en: "Audit log — who did what, when, from where (immutable records)" },
   "page.topology.title": { fr: "Topologie réseau", en: "Network Topology" },
-  "page.topology.sub": { fr: "Cartographie des hôtes par environnement — liens colorés selon l'état", en: "Host mapping by environment — links colored by state" },
+  "page.topology.sub": { fr: "Hôtes regroupés par environnement et dépendances déclarées entre hôtes", en: "Hosts grouped by environment and declared dependencies between hosts" },
   "page.geo.title": { fr: "Carte", en: "Map" },
   "page.geo.sub": { fr: "Vue géographique — place tes équipements d'un clic sur la carte", en: "Geographic view — place your devices on the map with one click" },
   "page.operations.title": { fr: "Opérations", en: "Operations" },
-  "page.operations.sub": { fr: "Cartographie métier temps réel — glissez les tuiles pour composer votre carte", en: "Real-time business map — drag the tiles to compose your map" },
+  "page.operations.sub": { fr: "Cartographie des services métier — glissez les tuiles pour composer votre carte", en: "Business service map — drag tiles to compose your map" },
   "page.knowledge.title": { fr: "Connaissances", en: "Knowledge" },
   "page.knowledge.sub": { fr: "Base de connaissances (RAG) — l'assistant IA s'appuie sur vos runbooks pour répondre", en: "Knowledge base (RAG) — the AI assistant relies on your runbooks to answer" },
   "page.chat.title": { fr: "Assistant IA", en: "AI Assistant" },
@@ -600,7 +600,7 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "ops.auto": { fr: "Auto", en: "Auto" },
   "ops.kpi.servicesOk": { fr: "Services métier OK", en: "Business services OK" },
   "ops.kpi.checksHealth": { fr: "Santé des checks", en: "Checks health" },
-  "ops.kpi.hostsOnline": { fr: "Hôtes en ligne", en: "Hosts online" },
+  "ops.kpi.hostsOnline": { fr: "Hôtes opérationnels", en: "Healthy hosts" },
   "ops.kpi.activeIncidents": { fr: "Incidents actifs", en: "Active incidents" },
   "ops.globalTitle": { fr: "OPÉRATIONS GLOBALES", en: "GLOBAL OPERATIONS" },
   "ops.hostsWord": { fr: "hôtes", en: "hosts" },
@@ -1007,6 +1007,21 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "tv.exitFullscreen": { fr: "Quitter le plein écran", en: "Exit full screen" },
   "tv.more": { fr: "+ {n} autre(s) incident(s) — voir le Centre d'incidents", en: "+ {n} more incident(s) — see the Incident Center" },
   "tv.moreHosts": { fr: "+ {n} autre(s) hôte(s)", en: "+ {n} more host(s)" },
+
+  // Topologie v2
+  "topo.searchPh": { fr: "Rechercher un hôte (nom, IP)…", en: "Search a host (name, IP)…" },
+  "topo.onlyDeps": { fr: "Dépendances uniquement", en: "Dependencies only" },
+  "topo.matches": { fr: "{n} hôte(s) correspondant(s) mis en évidence", en: "{n} matching host(s) highlighted" },
+  "topo.legend": { fr: "Légende", en: "Legend" },
+  "topo.legendDep": { fr: "Dépendance déclarée (hôte parent → enfant ; rouge si le parent est critique)", en: "Declared dependency (parent → child host; red if the parent is critical)" },
+  "topo.legendGroup": { fr: "Regroupement par environnement (pas un lien réseau)", en: "Grouping by environment (not a network link)" },
+
+  // Carte des opérations v2
+  "ops.componentsOk": { fr: "composants OK", en: "components OK" },
+  "ops.refreshEvery": { fr: "Actualisée toutes les 30 s", en: "Refreshed every 30 s" },
+  "ops.moveHint": { fr: "flèches pour déplacer (Maj = grand pas)", en: "arrow keys to move (Shift = large step)" },
+  "ops.resetTitle": { fr: "Revenir au placement automatique ?", en: "Back to automatic layout?" },
+  "ops.resetBody": { fr: "Les positions enregistrées de toutes les tuiles seront effacées pour tous les utilisateurs.", en: "The saved positions of all tiles will be cleared for all users." },
 
   // Remédiation : validation humaine
   "alert.suggestedAi": { fr: "suggestion IA", en: "AI suggestion" },
