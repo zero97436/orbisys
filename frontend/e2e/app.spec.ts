@@ -413,3 +413,34 @@ test("licence : clé expirée expliquée, quota affiché", async ({ page }) => {
   await expect(card).toContainText("La supervision continue normalement");
   await expect(card).toContainText("3 / 25");
 });
+
+test("canaux de notification : validation, édition requise, ajout et suppression confirmée", async ({ page }) => {
+  let posts = 0;
+  page.on("request", (r) => { if (r.method() === "POST" && r.url().endsWith("/notification-channels")) posts++; });
+  await page.route("**/api/hosts/license", (r) =>
+    r.fulfill({ json: { plan: "community", max_hosts: 25, features: [], used: 1, customer: null, expires: null, key_status: "none" } }));
+  await login(page);
+  await page.goto("/settings");
+  const card = page.locator("#channels");
+  // E-mail invalide : refusé sans requête.
+  await card.getByLabel("Type de canal").selectOption("email");
+  await card.getByLabel("Nom", { exact: true }).fill("[TEST] canal");
+  await card.getByLabel("Destinataire").fill("pas-un-email");
+  await card.getByRole("button", { name: "Ajouter le canal" }).click();
+  await expect(card.getByText("Adresse e-mail invalide.")).toBeVisible();
+  expect(posts).toBe(0);
+  // Canal hors édition : verrouillé.
+  await card.getByLabel("Type de canal").selectOption("slack");
+  await expect(card.locator("p", { hasText: "Ce canal nécessite l'édition Professional" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Ajouter le canal" })).toBeDisabled();
+  // Webhook valide : créé puis supprimé avec confirmation.
+  await card.getByLabel("Type de canal").selectOption("webhook");
+  await card.getByLabel("URL du webhook").fill("https://exemple.invalid/hook");
+  await card.getByRole("button", { name: "Ajouter le canal" }).click();
+  const row = card.locator("li", { hasText: "[TEST] canal" });
+  await expect(row).toBeVisible();
+  expect(posts).toBe(1);
+  await card.getByRole("button", { name: "Supprimer [TEST] canal" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
+  await expect(row).toHaveCount(0);
+});

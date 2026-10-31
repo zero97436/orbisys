@@ -481,5 +481,7 @@ export const listChannels = () =>
   api.get<NotificationChannel[]>("/settings/notification-channels");
 export const createChannel = (data: Partial<NotificationChannel>) =>
   api.post<NotificationChannel>("/settings/notification-channels", data);
+export const deleteChannel = (id: number) =>
+  api.delete(`/settings/notification-channels/${id}`);
 export const testChannel = (id: number) =>
   api.post<{ sent: boolean }>(`/settings/notification-channels/${id}/test`);

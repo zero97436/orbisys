@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
-import { Mail, Webhook, Plus, Users, Trash2, ShieldAlert, Database, Eraser, MessageSquare, Send, Users2, Hash, Phone, Terminal, KeyRound, ShieldCheck, Pencil, X, Check } from "lucide-react";
+import { Plus, Users, Trash2, Database, Eraser, KeyRound, ShieldCheck, Pencil, X, Check } from "lucide-react";
 import {
-  createChannel,
   createUser,
   deleteUser,
   getDbStats,
-  listChannels,
   listUsers,
   runRetention,
-  testChannel,
   updateUser,
   listRoles,
   createRole,
@@ -18,36 +15,13 @@ import {
   type RoleDef,
   type RoleSection,
 } from "../api/endpoints";
-import type { NotificationChannel, User } from "../types";
-
-type ChannelType = NotificationChannel["type"];
-const CHANNEL_TYPES: ChannelType[] = ["webhook", "email", "slack", "telegram", "teams", "discord", "sms", "script"];
-const CHANNEL_PLACEHOLDER: Record<ChannelType, string> = {
-  webhook: '{"url": "https://..."}',
-  email: '{"to": "ops@exemple.com"}',
-  slack: '{"webhook_url": "https://hooks.slack.com/services/..."}',
-  telegram: '{"bot_token": "123:ABC", "chat_id": "123456789"}',
-  teams: '{"webhook_url": "https://outlook.office.com/webhook/..."}',
-  discord: '{"webhook_url": "https://discord.com/api/webhooks/..."}',
-  sms: '{"account_sid": "AC...", "auth_token": "...", "from": "+33...", "to": "+33..."}',
-  script: '{"command": "/opt/scripts/handler.sh"}',
-};
-const CHANNEL_ICON: Record<ChannelType, typeof Mail> = {
-  email: Mail,
-  webhook: Webhook,
-  slack: MessageSquare,
-  telegram: Send,
-  teams: Users2,
-  discord: Hash,
-  sms: Phone,
-  script: Terminal,
-};
+import type { User } from "../types";
 import { formatDate } from "../lib/format";
 import { PageHeader } from "../components/ui/PageHeader";
 import { BrandingPanel } from "../components/BrandingPanel";
+import { ChannelsCard } from "../components/ChannelsCard";
 import { LicenseCard } from "../components/LicenseCard";
 import { Card, SectionTitle } from "../components/ui/Card";
-import { EmptyState, ErrorState, Loading } from "../components/States";
 import { SystemHealthCard } from "../components/SystemHealthCard";
 import { changePassword } from "../api/endpoints";
 import { useAuth } from "../lib/auth";
@@ -57,7 +31,6 @@ import { useConfirm } from "../components/ui/Confirm";
 import { useToast } from "../components/ui/Toast";
 import { apiErrorMessage } from "../lib/apiError";
 
-const EMPTY_CHANNEL = { name: "", type: "webhook" as ChannelType, config_json: '{"url": ""}', escalation_only: false, active_hours: "" };
 const EMPTY_USER = { email: "", password: "", role: "viewer" };
 const BUILTIN_ROLE_KEY: Record<string, string> = { admin: "role.admin", operator: "role.operator", viewer: "role.viewer" };
 
@@ -66,11 +39,6 @@ export default function SettingsPage() {
   const { t } = useI18n();
   const admin = isAdmin(user);
   const dispRole = (name: string) => (BUILTIN_ROLE_KEY[name] ? t(BUILTIN_ROLE_KEY[name]) : name);
-
-  const [channels, setChannels] = useState<NotificationChannel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [chForm, setChForm] = useState(EMPTY_CHANNEL);
 
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<RoleDef[]>([]);
@@ -85,11 +53,6 @@ export default function SettingsPage() {
   const toast = useToast();
 
   const load = () => {
-    setLoading(true);
-    listChannels()
-      .then((r) => setChannels(r.data))
-      .catch(() => setError(t("common.loadError")))
-      .finally(() => setLoading(false));
     if (admin) {
       listUsers().then((r) => setUsers(r.data)).catch(() => {});
       getDbStats().then((r) => setStats(r.data)).catch(() => {});
@@ -133,29 +96,6 @@ export default function SettingsPage() {
     }
   };
 
-  const submitChannel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    let config: Record<string, unknown> = {};
-    try {
-      config = JSON.parse(chForm.config_json || "{}");
-    } catch {
-      toast.error(t("set.badJson"));
-      return;
-    }
-    try {
-      await createChannel({
-        name: chForm.name, type: chForm.type, config_json: config,
-        escalation_only: chForm.escalation_only, active_hours: chForm.active_hours || null,
-      });
-      toast.success(t("common.saved"));
-      setChForm(EMPTY_CHANNEL);
-    } catch (err) {
-      // 403 = canal réservé à une édition supérieure : message explicite du serveur.
-      toast.error(apiErrorMessage(err, t("common.actionFailed")));
-    }
-    load();
-  };
-
   const submitUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setUserErr(null);
@@ -170,15 +110,6 @@ export default function SettingsPage() {
       load();
     } catch (err) {
       setUserErr(apiErrorMessage(err, t("set.createUserFail")));
-    }
-  };
-
-  const testCh = async (id: number) => {
-    try {
-      await testChannel(id);
-      toast.success(t("set.testSent"));
-    } catch (err) {
-      toast.error(apiErrorMessage(err, t("set.testFail")));
     }
   };
 
@@ -289,66 +220,7 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Canaux de notification */}
-      <Card>
-        <SectionTitle title={t("set.channels")} />
-        {admin ? (
-          <form onSubmit={submitChannel} className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <input required placeholder="Nom" value={chForm.name} onChange={(e) => setChForm({ ...chForm, name: e.target.value })} className="input" />
-            <select
-              value={chForm.type}
-              onChange={(e) => {
-                const ct = e.target.value as ChannelType;
-                setChForm({ ...chForm, type: ct, config_json: CHANNEL_PLACEHOLDER[ct] });
-              }}
-              className="input"
-            >
-              {CHANNEL_TYPES.map((ct) => <option key={ct} value={ct}>{ct}</option>)}
-            </select>
-            <input placeholder={CHANNEL_PLACEHOLDER[chForm.type]} value={chForm.config_json} onChange={(e) => setChForm({ ...chForm, config_json: e.target.value })} className="input font-mono" />
-            <label className="flex items-center gap-2 text-sm text-ink-soft">
-              <input type="checkbox" checked={chForm.escalation_only} onChange={(e) => setChForm({ ...chForm, escalation_only: e.target.checked })} />
-              {t("set.escalationOnly")}
-            </label>
-            <input placeholder={t("set.activeHoursPh")} value={chForm.active_hours} onChange={(e) => setChForm({ ...chForm, active_hours: e.target.value })} className="input sm:col-span-2" />
-            <button className="btn-primary sm:col-span-3"><Plus className="h-4 w-4" /> {t("set.addChannel")}</button>
-          </form>
-        ) : (
-          <p className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-bg-soft/50 p-3 text-sm text-ink-faint">
-            <ShieldAlert className="h-4 w-4" /> {t("set.adminOnlyChannels")}
-          </p>
-        )}
-
-        {loading ? <Loading /> : error ? <ErrorState message={error} /> :
-          channels.length === 0 ? <EmptyState message={t("set.noChannels")} /> : (
-          <div className="space-y-2">
-            {channels.map((ch) => {
-              const Icon = CHANNEL_ICON[ch.type] ?? Webhook;
-              return (
-                <div key={ch.id} className="flex items-center gap-3 rounded-lg border border-border bg-bg-soft/50 px-3 py-2.5">
-                  <span className="rounded-lg bg-bg p-2 text-ink-soft">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-sm font-medium text-ink">
-                      {ch.name}
-                      {ch.escalation_only && <span className="rounded bg-status-warning/15 px-1.5 py-0.5 text-[10px] text-status-warning">{t("set.onCall")}</span>}
-                      {ch.active_hours && <span className="rounded bg-bg px-1.5 py-0.5 text-[10px] text-ink-faint">{ch.active_hours}</span>}
-                    </p>
-                    <p className="truncate font-mono text-xs text-ink-faint">{JSON.stringify(ch.config_json)}</p>
-                  </div>
-                  <span className="rounded-full bg-bg px-2 py-0.5 text-xs text-ink-soft">{ch.type}</span>
-                  {admin && (
-                    <button onClick={() => testCh(ch.id)} className="btn-ghost px-2.5 py-1.5 text-xs">
-                      <Send className="h-3.5 w-3.5" /> {t("common.test")}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+      <ChannelsCard admin={admin} />
 
       <p className="text-sm text-ink-faint">
         {t("set.smtpNote")}

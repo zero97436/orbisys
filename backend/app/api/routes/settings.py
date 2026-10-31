@@ -52,6 +52,16 @@ def create_channel(payload: NotificationChannelCreate, db: Session = Depends(get
     return channel
 
 
+@router.delete("/notification-channels/{channel_id}", status_code=204, dependencies=[Depends(require_admin)])
+def delete_channel(channel_id: int, db: Session = Depends(get_db)):
+    """Supprime un canal de notification (aucune autre table ne le référence)."""
+    channel = db.get(NotificationChannel, channel_id)
+    if not channel:
+        raise HTTPException(404, "Channel not found")
+    db.delete(channel)
+    db.commit()
+
+
 @router.post("/notification-channels/{channel_id}/test", dependencies=[Depends(require_admin)])
 def test_channel(channel_id: int, db: Session = Depends(get_db)):
     """Envoie une notification de test via le canal."""
