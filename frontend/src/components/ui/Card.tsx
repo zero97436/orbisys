@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/cn";
 
@@ -58,8 +58,10 @@ export const fadeUp = {
 };
 
 export function MotionGrid({ children, className }: { children: ReactNode; className?: string }) {
+  // « Réduire les animations » : pas de fondu d'entrée (initial={false} vaut pour tous les enfants).
+  const reduce = useReducedMotion();
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className={className}>
+    <motion.div variants={stagger} initial={reduce ? false : "hidden"} animate="show" className={className}>
       {children}
     </motion.div>
   );

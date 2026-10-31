@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { MotionConfig } from "framer-motion";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./lib/auth";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
@@ -41,6 +42,8 @@ const DocsPage = lazy(() => import("./pages/DocsPage"));
 
 export default function App() {
   return (
+    // Animations framer-motion : respectent la préférence système « réduire les animations ».
+    <MotionConfig reducedMotion="user">
     <I18nProvider>
     <ToastProvider>
     <ConfirmProvider>
@@ -98,5 +101,6 @@ export default function App() {
     </ConfirmProvider>
     </ToastProvider>
     </I18nProvider>
+    </MotionConfig>
   );
 }

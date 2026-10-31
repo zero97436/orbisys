@@ -477,6 +477,8 @@ for (const theme of ["dark", "light"] as const) {
   test(`accessibilité WCAG A/AA : toutes les pages, thème ${theme}`, async ({ page }) => {
     test.setTimeout(180_000);
     await page.addInitScript((th) => localStorage.setItem("orbisys_theme", th), theme);
+    // Mouvement réduit : l'audit porte sur l'état stable, pas sur une image en cours de fondu.
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await login(page);
     const failures: string[] = [];
     for (const r of [...A11Y_ROUTES, "login"]) {
@@ -493,3 +495,24 @@ for (const theme of ["dark", "light"] as const) {
     expect(failures).toEqual([]);
   });
 }
+
+test("rapports : disponibilité calculée par le serveur (24 h, 7 j, 30 j), aucune requête par check", async ({ page }) => {
+  await page.route("**/api/hosts/license", (r) => r.fulfill({ json: {
+    plan: "professional", max_hosts: null, features: ["sla_reports", "pdf_reports"], used: 1, customer: "[TEST]", expires: null, key_status: "valid" } }));
+  await page.route("**/api/reports/sla**", (r) => r.fulfill({ json: { days: 30, global_availability: 99.5, hosts: [] } }));
+  await page.route("**/api/reports/mttr**", (r) => r.fulfill({ json: { days: 30, incidents: 0, resolved: 0, active: 0, mttr_seconds: null, longest_seconds: null } }));
+  const perCheck: string[] = [];
+  const availability: string[] = [];
+  page.on("request", (r) => {
+    if (/\/api\/checks\/\d+\/results/.test(r.url())) perCheck.push(r.url());
+    if (r.url().includes("/api/dashboard/availability")) availability.push(new URL(r.url()).searchParams.get("hours") ?? "");
+  });
+  await login(page);
+  availability.length = 0;
+  perCheck.length = 0;
+  await page.goto("/reports");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // Fenêtres demandées (le mode strict de React en développement double les appels).
+  await expect.poll(() => [...new Set(availability)].sort()).toEqual(["168", "24", "720"]);
+  expect(perCheck).toEqual([]);
+});

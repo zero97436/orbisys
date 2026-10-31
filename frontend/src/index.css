@@ -65,7 +65,7 @@
   --ink-faint: 92 101 136;
   --scroll: 203 213 225;
   --st-ok: 4 108 78;
-  --st-warning: 180 83 9;
+  --st-warning: 146 64 14;
   --st-critical: 185 28 28;
   --st-unknown: 71 85 105;
   --st-info: 29 78 216;
@@ -112,7 +112,7 @@
     --ink-faint: 92 101 136;
     --scroll: 203 213 225;
     --st-ok: 4 108 78;
-    --st-warning: 180 83 9;
+    --st-warning: 146 64 14;
     --st-critical: 185 28 28;
     --st-unknown: 71 85 105;
     --st-info: 29 78 216;
