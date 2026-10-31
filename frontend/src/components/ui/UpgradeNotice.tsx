@@ -1,6 +1,7 @@
 import { Lock } from "lucide-react";
 import { FEATURE_PLAN, PLAN_LABEL, useLicense } from "../../lib/license";
 import { useI18n } from "../../lib/i18n";
+import { Loading } from "../States";
 
 /** Module réservé à une édition supérieure : explique quoi, à partir de quelle édition,
  *  et comment l'obtenir. N'ouvre rien côté frontend : le backend reste seul juge. */
@@ -36,5 +37,22 @@ export function PlanTag({ feature }: { feature: string }) {
       <Lock className="h-2.5 w-2.5" aria-hidden />
       {plan}
     </span>
+  );
+}
+
+/** Garde de route : si l'édition ne couvre pas `feature`, la page n'est pas montée
+ *  (aucun appel à une route absente en Community) et l'édition requise est expliquée.
+ *  Licence illisible (erreur réseau) : la page s'affiche, le backend décide. */
+export function FeatureGate({ feature, titleKey, children }: { feature: string; titleKey: string; children: React.ReactNode }) {
+  const { t } = useI18n();
+  const { has, loading } = useLicense();
+  // Attendre la licence : sinon la page aurait le temps d'appeler une route absente.
+  if (loading) return <Loading />;
+  if (has(feature)) return <>{children}</>;
+  return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-semibold text-ink">{t(titleKey)}</h1>
+      <UpgradeNotice feature={feature} />
+    </div>
   );
 }

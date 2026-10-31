@@ -9,6 +9,7 @@ import { BrandingProvider } from "./lib/branding";
 import { I18nProvider } from "./lib/i18n";
 import { ToastProvider } from "./components/ui/Toast";
 import { ConfirmProvider } from "./components/ui/Confirm";
+import { FeatureGate } from "./components/ui/UpgradeNotice";
 
 // Code splitting : chaque page est chargée à la demande.
 const StatusPage = lazy(() => import("./pages/StatusPage"));
@@ -72,15 +73,15 @@ export default function App() {
                   <Route path="/incidents" element={<IncidentCenterPage />} />
                   <Route path="/topology" element={<TopologyPage />} />
                   <Route path="/geo" element={<GeoMapPage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/reports" element={<FeatureGate feature="sla_reports" titleKey="nav.reports"><ReportsPage /></FeatureGate>} />
                   <Route path="/operations" element={<OperationsMapPage />} />
                   <Route path="/bam" element={<BamPage />} />
                   <Route path="/apm" element={<ApmPage />} />
                   <Route path="/containers" element={<ContainersPage />} />
                   <Route path="/tickets" element={<TicketsPage />} />
                   <Route path="/events" element={<EventsPage />} />
-                  <Route path="/audit" element={<AuditPage />} />
-                  <Route path="/tenants" element={<TenantsPage />} />
+                  <Route path="/audit" element={<FeatureGate feature="audit" titleKey="nav.audit"><AuditPage /></FeatureGate>} />
+                  <Route path="/tenants" element={<FeatureGate feature="multi_tenant" titleKey="nav.tenants"><TenantsPage /></FeatureGate>} />
                   <Route path="/assistant" element={<ChatPage />} />
                   <Route path="/knowledge" element={<KnowledgePage />} />
                   <Route path="/settings" element={<SettingsPage />} />

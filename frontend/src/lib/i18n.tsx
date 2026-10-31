@@ -994,6 +994,20 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "ev.openHost": { fr: "Voir l'hôte", en: "View host" },
   "ev.openCheck": { fr: "Voir le check", en: "View check" },
 
+  // Purge de rétention
+  "set.purgeTitle": { fr: "Purger maintenant les données anciennes ?", en: "Purge old data now?" },
+  "set.purgeBody": { fr: "Toutes les données plus anciennes que les fenêtres de rétention ci-dessous seront supprimées de la base, sans attendre la purge automatique.", en: "All data older than the retention windows below will be deleted from the database, without waiting for the automatic purge." },
+  "set.purgeWord": { fr: "PURGER", en: "PURGE" },
+
+  // Vue NOC (TV)
+  "tv.unreachable": { fr: "Serveur Orbisys injoignable", en: "Orbisys server unreachable" },
+  "tv.stale": { fr: "Connexion perdue — données affichées du {time}", en: "Connection lost — data shown from {time}" },
+  "tv.exit": { fr: "Quitter le mode TV", en: "Exit TV mode" },
+  "tv.fullscreen": { fr: "Plein écran", en: "Full screen" },
+  "tv.exitFullscreen": { fr: "Quitter le plein écran", en: "Exit full screen" },
+  "tv.more": { fr: "+ {n} autre(s) incident(s) — voir le Centre d'incidents", en: "+ {n} more incident(s) — see the Incident Center" },
+  "tv.moreHosts": { fr: "+ {n} autre(s) hôte(s)", en: "+ {n} more host(s)" },
+
   // Remédiation : validation humaine
   "alert.suggestedAi": { fr: "suggestion IA", en: "AI suggestion" },
   "rem.confirmTitle": { fr: "Exécuter cette action de remédiation ?", en: "Run this remediation action?" },

@@ -46,6 +46,10 @@ Inchangé (backend) : déduplication, flapping, escalade, suppression par dépen
 
 Reporté : le résumé IA global (`POST /dashboard/ai-summary`) agrège tous les tenants pour un utilisateur cloisonné — correction à faire dans `AIService` (Lot 5).
 
+## Correctifs P0 anticipés ✅ (31/10/2026)
+
+Les cinq P0 restants de l'audit ont été traités avant le Lot 4 : P0-4 (modules hors édition), P0-5 (purge), P0-6 (identifiants préremplis), P0-7 (mode TV : statut des tuiles, perte de connexion, plein écran, horloge localisée), P0-12 (cloisonnement tenant de toute l'IA : résumé, chat, application de plan). Le Lot 4 reprend la vue NOC à partir de cette base.
+
 ## Lot 4 — Visualisation
 
 Vue NOC : correction `status.` (P0-7), indicateur de déconnexion et heure de dernière mise à jour, tailles adaptées au mur d'écrans, rotation/pagination, plein écran, horloge localisée. Topologie : légende, filtres, recherche, clic vers l'hôte, thème clair, relations réelles uniquement (`parent_host_id`). Opérations : badge « temps réel » retiré ou rafraîchissement réel.

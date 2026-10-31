@@ -52,6 +52,9 @@ import { changePassword } from "../api/endpoints";
 import { useAuth } from "../lib/auth";
 import { isAdmin } from "../lib/permissions";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
 
 const EMPTY_CHANNEL = { name: "", type: "webhook" as ChannelType, config_json: '{"url": ""}', escalation_only: false, active_hours: "" };
 const EMPTY_USER = { email: "", password: "", role: "viewer" };
@@ -77,6 +80,8 @@ export default function SettingsPage() {
 
   const [stats, setStats] = useState<DbStats | null>(null);
   const [purging, setPurging] = useState(false);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const load = () => {
     setLoading(true);
@@ -97,12 +102,31 @@ export default function SettingsPage() {
       .catch(() => {});
   useEffect(load, [admin]);
 
+  // Suppression définitive : confirmation explicite, mot à retaper, fenêtres affichées.
   const purge = async () => {
+    if (!stats) return;
+    const d = stats.retention_days;
+    const ok = await confirm({
+      title: t("set.purgeTitle"),
+      message: <><p>{t("set.purgeBody")}</p><p className="mt-2 font-medium text-status-critical">{t("confirm.irreversible")}</p></>,
+      details: [
+        `${t("set.ret.checkResults")} > ${d.check_results} ${t("set.daysShort")}`,
+        `${t("set.ret.metricsRaw")} > ${d.host_metrics} ${t("set.daysShort")}`,
+        `${t("set.ret.metricsHourly")} > ${d.host_metrics_hourly} ${t("set.daysShort")}`,
+        `${t("set.ret.alerts")} > ${d.resolved_alerts} ${t("set.daysShort")}`,
+      ].map((l) => <div key={l}>{l}</div>),
+      requireText: t("set.purgeWord"),
+      confirmLabel: t("set.purgeNow"),
+      tone: "danger",
+    });
+    if (!ok) return;
     setPurging(true);
     try {
       const { data } = await runRetention();
-      alert(`${t("set.purgeDone")} : ${data.total} ${t("set.rowsDeleted")}`);
+      toast.success(`${t("set.purgeDone")} : ${data.total} ${t("set.rowsDeleted")}`);
       getDbStats().then((r) => setStats(r.data)).catch(() => {});
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
     } finally {
       setPurging(false);
     }
@@ -114,14 +138,20 @@ export default function SettingsPage() {
     try {
       config = JSON.parse(chForm.config_json || "{}");
     } catch {
-      alert(t("set.badJson"));
+      toast.error(t("set.badJson"));
       return;
     }
-    await createChannel({
-      name: chForm.name, type: chForm.type, config_json: config,
-      escalation_only: chForm.escalation_only, active_hours: chForm.active_hours || null,
-    });
-    setChForm(EMPTY_CHANNEL);
+    try {
+      await createChannel({
+        name: chForm.name, type: chForm.type, config_json: config,
+        escalation_only: chForm.escalation_only, active_hours: chForm.active_hours || null,
+      });
+      toast.success(t("common.saved"));
+      setChForm(EMPTY_CHANNEL);
+    } catch (err) {
+      // 403 = canal réservé à une édition supérieure : message explicite du serveur.
+      toast.error(apiErrorMessage(err, t("common.actionFailed")));
+    }
     load();
   };
 
@@ -137,30 +167,39 @@ export default function SettingsPage() {
       setUserForm(EMPTY_USER);
       setUserConfirm("");
       load();
-    } catch {
-      setUserErr(t("set.createUserFail"));
+    } catch (err) {
+      setUserErr(apiErrorMessage(err, t("set.createUserFail")));
     }
   };
 
   const testCh = async (id: number) => {
     try {
       await testChannel(id);
-      alert(t("set.testSent"));
-    } catch {
-      alert(t("set.testFail"));
+      toast.success(t("set.testSent"));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t("set.testFail")));
     }
   };
 
   const changeRole = async (u: User, role: string) => {
-    await updateUser(u.id, { role });
+    try {
+      await updateUser(u.id, { role });
+      toast.success(t("common.saved"));
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
+    }
     load();
   };
 
   const removeUser = async (u: User) => {
-    if (confirm(`${t("set.confirmDeleteUser")} ${u.email} ?`)) {
+    const ok = await confirm({ title: `${t("set.confirmDeleteUser")} ?`, details: u.email, confirmLabel: t("common.delete"), tone: "danger" });
+    if (!ok) return;
+    try {
       await deleteUser(u.id);
-      load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
     }
+    load();
   };
 
   return (
@@ -229,8 +268,8 @@ export default function SettingsPage() {
             title={t("set.dbRetention")}
             icon={Database}
             action={
-              <button onClick={purge} disabled={purging} className="btn-ghost px-3 py-1.5 text-xs">
-                <Eraser className="h-3.5 w-3.5" /> {purging ? t("set.purging") : t("set.purgeNow")}
+              <button type="button" onClick={purge} disabled={purging} className="btn-ghost px-3 py-1.5 text-xs hover:text-status-critical">
+                <Eraser className="h-3.5 w-3.5" aria-hidden /> {purging ? t("set.purging") : t("set.purgeNow")}
               </button>
             }
           />
@@ -241,8 +280,7 @@ export default function SettingsPage() {
             <RetentionStat label={t("set.ret.alerts")} stat={stats.alerts} days={stats.retention_days.resolved_alerts} />
           </div>
           <p className="mt-3 text-xs text-ink-faint">
-            La purge automatique tourne via le scheduler ; les données au-delà de la fenêtre
-            de rétention sont supprimées (configurable via variables d'environnement).
+            {t("set.retentionNote")}
           </p>
         </Card>
       )}
@@ -411,11 +449,22 @@ function RolesCard({ roles, sections, onChange }: { roles: RoleDef[]; sections: 
   };
   const cancel = () => { setEditing(null); setName(""); setDesc(""); setPerms([]); setErr(null); };
 
+  const confirmDialog = useConfirm();
   const remove = async (r: RoleDef) => {
-    if (confirm(`${t("roles.confirmDelete")} « ${r.name} »${t("roles.confirmDeleteTail")}`)) {
+    const ok = await confirmDialog({
+      title: `${t("roles.confirmDelete")} ?`,
+      message: t("roles.confirmDeleteTail").replace(/^\?\s*/, ""),
+      details: r.name,
+      confirmLabel: t("common.delete"),
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
       await deleteRole(r.id!);
-      onChange();
+    } catch (e) {
+      setErr(apiErrorMessage(e, t("roles.saveFail")));
     }
+    onChange();
   };
 
   const custom = roles.filter((r) => !r.builtin);

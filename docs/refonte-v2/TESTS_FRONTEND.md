@@ -65,7 +65,19 @@ E2E ajoutés ou modifiés :
 
 Pytest ajoutés : cloisonnement tenant des actions sur incident (reproduisait la faille avant correction : l'analyse d'un incident d'un autre tenant était lancée) ; filtre `check_id` du journal.
 
+## Correctifs P0 — 31/10/2026
+
+| Vérification | Résultat |
+|---|---|
+| TypeScript, build | ✅ |
+| Vitest | ✅ 17/17 |
+| E2E (Edge) | ✅ 21/21 |
+| Pytest backend complet | ✅ 215 réussis, 2 ignorés |
+
+- Pytest : `test_ai_summary_only_sees_own_tenant` (échouait avant correction : l'hôte d'un autre tenant était envoyé au modèle), `test_ai_chat_and_plan_stay_in_tenant` (contexte du chat et suppression d'un hôte étranger via plan).
+- E2E : connexion sans identifiants préremplis ; modules hors édition sans requête vers une route absente (licence Community simulée) ; purge verrouillée sans le mot de confirmation exact ; mode TV (statut des tuiles, bandeau de perte de connexion).
+- Vérifié dans l'environnement de test (licence Community réelle) : 0 requête vers `/api/reports|audit|tenants` après correction du chargement de la licence dans `FeatureGate`.
+
 ## Problèmes restants (lots suivants)
-- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Settings, Bam, Knowledge, Templates, Tenants, Reports, Chat).
-- Reports/Audit/Tenants en Community : la navigation affiche le verrou, mais les pages appellent encore une route absente (Lot 5).
-- Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`).
+- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Bam, Knowledge, Templates, Tenants, Reports, Chat).
+- Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`). L'ancien Playwright de `_tools/` ne lance plus Edge (mode headless retiré) : utiliser celui de `frontend/node_modules`.

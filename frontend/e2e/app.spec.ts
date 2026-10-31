@@ -281,3 +281,52 @@ test("tickets : création, tâche, suppressions confirmées", async ({ page }) =
   await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
   await expect(page.locator(".card", { hasText: title })).toHaveCount(0);
 });
+
+/* ---------- Correctifs P0 (audit) ---------- */
+
+test("P0-6 : aucun identifiant prérempli sur la connexion", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.locator("#login-email")).toHaveValue("");
+  await expect(page.locator("#login-password")).toHaveValue("");
+});
+
+test("P0-4 : module hors édition expliqué, sans appel à une route absente", async ({ page }) => {
+  // Licence simulée Community : aucune fonctionnalité payante.
+  await page.route("**/api/hosts/license", (r) =>
+    r.fulfill({ json: { plan: "community", max_hosts: 25, features: [], used: 1, customer: null, expires: null } }));
+  const calls: string[] = [];
+  page.on("request", (r) => { if (/\/api\/(reports|audit|tenants)/.test(r.url())) calls.push(r.url()); });
+  await login(page);
+  for (const [path, edition] of [["/reports", "Professional"], ["/audit", "Enterprise"], ["/tenants", "Business"]] as const) {
+    await page.goto(path);
+    await expect(page.getByText("Module non inclus dans votre édition")).toBeVisible();
+    await expect(page.getByText(new RegExp(`édition ${edition}`))).toBeVisible();
+  }
+  expect(calls).toEqual([]);
+});
+
+test("P0-5 : purge de rétention verrouillée jusqu'à la saisie du mot de confirmation", async ({ page }) => {
+  let purges = 0;
+  await page.route("**/api/admin/retention/run", (r) => { purges++; return r.abort(); });
+  await login(page);
+  await page.goto("/settings");
+  await page.getByRole("button", { name: /Purger maintenant/ }).click();
+  const dialog = page.getByRole("dialog");
+  const confirmBtn = dialog.getByRole("button", { name: /Purger maintenant/ });
+  await expect(dialog).toContainText("irréversible");
+  await expect(confirmBtn).toBeDisabled();
+  await dialog.getByRole("textbox").fill("purger");
+  await expect(confirmBtn).toBeDisabled();
+  await dialog.getByRole("button", { name: "Annuler" }).click();
+  expect(purges).toBe(0);
+});
+
+test("P0-7 : mode TV — statut des tuiles et bandeau de perte de connexion", async ({ page }) => {
+  await login(page);
+  await page.goto("/tv");
+  await expect(page.getByText(/· \d+ check/).first()).toBeVisible();
+  await expect(page.getByText(/^(Opérationnel|Avertissement|Critique|Inconnu) · \d+ check/).first()).toBeVisible();
+  await page.route("**/api/**", (r) => r.abort());
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect(page.getByRole("alert")).toContainText("Connexion perdue");
+});

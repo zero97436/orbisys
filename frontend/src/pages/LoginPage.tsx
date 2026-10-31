@@ -14,8 +14,9 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@local");
-  const [password, setPassword] = useState("admin1234");
+  // Jamais d'identifiants préremplis : le compte initial est documenté dans le README.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [ssoEnabled, setSsoEnabled] = useState(false);
@@ -98,16 +99,16 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-status-critical/30 bg-status-critical/10 p-2.5 text-sm text-status-critical">
+          <div role="alert" className="mb-4 rounded-lg border border-status-critical/30 bg-status-critical/10 p-2.5 text-sm text-status-critical">
             {error}
           </div>
         )}
 
-        <label className="mb-1 block text-sm font-medium text-ink-soft">{t("login.email")}</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input mb-4 w-full" />
+        <label htmlFor="login-email" className="mb-1 block text-sm font-medium text-ink-soft">{t("login.email")}</label>
+        <input id="login-email" type="email" required autoComplete="username" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className="input mb-4 w-full" />
 
-        <label className="mb-1 block text-sm font-medium text-ink-soft">{t("login.password")}</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input mb-1 w-full" />
+        <label htmlFor="login-password" className="mb-1 block text-sm font-medium text-ink-soft">{t("login.password")}</label>
+        <input id="login-password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="input mb-1 w-full" />
 
         <div className="mb-5 text-right">
           <button type="button" onClick={onForgot} className="text-xs text-brand hover:underline">
@@ -116,7 +117,7 @@ export default function LoginPage() {
         </div>
 
         {forgotMsg && (
-          <div className="mb-4 rounded-lg border border-status-ok/30 bg-status-ok/10 p-2.5 text-sm text-status-ok">
+          <div role="status" className="mb-4 rounded-lg border border-status-ok/30 bg-status-ok/10 p-2.5 text-sm text-status-ok">
             {forgotMsg}
           </div>
         )}

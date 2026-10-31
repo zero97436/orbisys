@@ -36,17 +36,17 @@ React 18, TypeScript, Vite, Tailwind 3.4, framer-motion, recharts, React Flow (t
 | P0-1 | Remédiation exécutée en un clic, sans confirmation ; action IA présentée en bouton principal | `AlertCard.tsx`, `IncidentCenterPage.tsx` | **Corrigé (Lot 1)** |
 | P0-2 | Hôte sans check compté « OK » | `lib/fleet.ts` | **Corrigé (Lot 1)** : UNKNOWN |
 | P0-3 | Palette Ctrl+K : liens `/hosts/` et `/checks/` sans identifiant, clés React dupliquées | `CommandPalette.tsx` | **Corrigé (Lot 1)** |
-| P0-4 | Modules payants absents en Community (404) affichés comme vides ou cassés | Reports, Audit, Tenants | Lot 1 : verrou dans la navigation ; pages : Lot 5 (`UpgradeNotice`) |
-| P0-5 | Purge de rétention irréversible sans confirmation | `SettingsPage.tsx` | Lot 5 |
-| P0-6 | Identifiants par défaut préremplis | `LoginPage.tsx` | Lot 5 |
-| P0-7 | TvPage : statut des tuiles vide (`t("status.")`), aucune alerte de déconnexion | `TvPage.tsx` | Lot 4 |
+| P0-4 | Modules payants absents en Community (404) affichés comme vides ou cassés | Reports, Audit, Tenants | **Corrigé** : `FeatureGate` sur les routes, aucune requête vers une route absente |
+| P0-5 | Purge de rétention irréversible sans confirmation | `SettingsPage.tsx` | **Corrigé** : confirmation avec mot à retaper, fenêtres affichées |
+| P0-6 | Identifiants par défaut préremplis | `LoginPage.tsx` | **Corrigé** |
+| P0-7 | TvPage : statut des tuiles vide (`t("status.")`), aucune alerte de déconnexion | `TvPage.tsx` | **Corrigé** : statut, bandeau de déconnexion, erreur au 1er chargement |
 | P0-8 | « Hôtes down » inclut WARNING et UNKNOWN | `DashboardPage.tsx` | **Corrigé (Lot 2)** |
 
 | P0-9 | « Dispo 24 h » calculée sur les 200 derniers résultats des 24 premiers checks (≈ 3 h, échantillon partiel) | `DashboardPage.tsx` | **Corrigé (Lot 2)** : calcul serveur |
 | P0-10 | Fiche hôte : « Uptime » = ancienneté de l'hôte dans Orbisys ; « dernier contrôle » = dernière modification | `HostCard.tsx`, `fleet.ts` | **Corrigé (Lot 2)** : libellés exacts |
 
 | P0-11 | Remédiation et analyse IA d'un incident sans contrôle du périmètre tenant (un utilisateur cloisonné pouvait agir sur l'hôte d'un autre client) | `backend/app/api/routes/dashboard.py` | **Corrigé (Lot 3)** |
-| P0-12 | Résumé IA global calculé sur tous les tenants pour un utilisateur cloisonné | `backend/app/api/routes/dashboard.py` (`ai-summary`) | Lot 5 |
+| P0-12 | Résumé IA global calculé sur tous les tenants pour un utilisateur cloisonné ; même défaut dans le contexte du chat IA et l'application d'un plan IA (modification/suppression d'hôtes d'un autre tenant) | `backend/app/services/ai_service.py`, `routes/ai.py`, `routes/dashboard.py` | **Corrigé** |
 
 ### P1 — compréhension, erreurs, permissions, i18n
 - Mutations sans gestion d'erreur (≈ 15 pages) : rejet de promesse silencieux. Outils prêts : `useToast`, `apiErrorMessage`.

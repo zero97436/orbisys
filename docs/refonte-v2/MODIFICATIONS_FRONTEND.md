@@ -90,3 +90,13 @@ Comportement backend de la remédiation inchangé (droits, licence `remediation`
 | `pages/EventsPage.tsx` | Erreur + réessayer, nouveaux types, liens, portée de recherche | Audit §1, §5 |
 | `components/ui/Modal.tsx` | Pile de dialogues | Échap fermait la fiche et la confirmation ensemble |
 | `components/charts/ResponseTimeChart.tsx` | Légende traduite | i18n |
+
+## Correctifs P0
+
+| Fichier | Changement | Justification | Risque |
+|---|---|---|---|
+| `backend/app/services/ai_service.py`, `routes/ai.py`, `routes/dashboard.py` | `health_summary`, `chat` et `_state_snapshot` limités au périmètre de l'utilisateur ; `apply_plan` ignore toute opération sur un hôte/check hors périmètre et rattache un hôte créé au tenant de l'utilisateur | Fuite et modification possibles entre clients (P0-12) | Nul hors multi-tenant |
+| `frontend/src/components/ui/UpgradeNotice.tsx` (`FeatureGate`), `App.tsx` | Rapports, Audit, Tenants : la page n'est montée que si l'édition couvre la fonction ; sinon explication de l'édition requise | P0-4 : pages vides/cassées et appels 404 en Community | Faible : licence illisible = page affichée, backend juge |
+| `frontend/src/pages/SettingsPage.tsx` | Purge : confirmation avec mot à retaper et fenêtres de rétention ; suppression d'utilisateur et de rôle confirmées ; plus aucun `alert()` | P0-5, règle n°13 | — |
+| `frontend/src/pages/LoginPage.tsx` | Champs vides, `htmlFor`/`autocomplete`, messages annoncés | P0-6, accessibilité | Le compte initial reste documenté dans le README |
+| `frontend/src/pages/TvPage.tsx` | Réécrit : statut des tuiles, bandeau de perte de connexion avec heure des données, écran d'erreur au premier chargement, plein écran, horloge localisée, « + N autres », polices agrandies | P0-7 | — |
