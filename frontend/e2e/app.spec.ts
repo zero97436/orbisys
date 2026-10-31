@@ -444,3 +444,24 @@ test("canaux de notification : validation, édition requise, ajout et suppressio
   await page.getByRole("dialog").getByRole("button", { name: "Supprimer" }).click();
   await expect(row).toHaveCount(0);
 });
+
+test("premiers pas : étapes calculées sur les données réelles, masquables", async ({ page }) => {
+  await page.route("**/api/settings/notification-channels", (r) => (r.request().method() === "GET" ? r.fulfill({ json: [] }) : r.continue()));
+  // Réinitialise le masquage une seule fois (pas à chaque rechargement).
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem("gs-reset")) { localStorage.removeItem("orbisys_onboarding_hidden"); sessionStorage.setItem("gs-reset", "1"); }
+  });
+  await login(page);
+  const card = page.getByRole("region", { name: /premiers pas/ });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("Être prévenu");
+  await expect(card.getByRole("link", { name: "Ajouter un canal" })).toBeVisible();
+  await card.getByRole("button", { name: "Masquer les premiers pas" }).click();
+  await expect(card).toHaveCount(0);
+  await page.reload();
+  // Attendre que le tableau de bord ait chargé ses données (dont les canaux) avant de conclure.
+  await page.waitForResponse((r) => r.url().includes("/api/settings/notification-channels"));
+  await expect(page.getByRole("heading", { level: 1, name: "Tableau de bord" })).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("region", { name: /premiers pas/ })).toHaveCount(0);
+});

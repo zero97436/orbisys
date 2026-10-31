@@ -91,6 +91,19 @@ E2E ajoutés : topologie (nombre d'arêtes = nombre de dépendances déclarées,
 
 Vérification visuelle : topologie en thèmes sombre et clair, carte des opérations sans service métier (état vide, KPI neutres).
 
+## Lot 5 — 31/10/2026
+
+| Vérification | Résultat |
+|---|---|
+| TypeScript, build | ✅ |
+| Vitest | ✅ 17/17 |
+| E2E (Edge, 3 workers) | ✅ 28/28 |
+| Pytest backend complet | ✅ 220 réussis, 2 ignorés |
+
+- Pytest ajoutés : `/ai/status` (disponible / injoignable, sans URL), état de la clé de licence (none / valid / expired / invalid) et absence de la clé dans la réponse, suppression de canal (204, 404, 403 pour un lecteur).
+- E2E ajoutés : assistant (état du modèle, réponse étiquetée IA, plan non exécuté sans confirmation, IA indisponible), licence expirée expliquée, canaux (validation sans requête, canal Professional verrouillé, ajout puis suppression d'un canal `[TEST]`), premiers pas (étapes, masquage persistant après rechargement).
+- Stabilité : avec 8 workers ou plus, des tests différents échouaient par délai dépassé (serveur Vite saturé) ; 2 exécutions complètes à 3 workers : 27/27 puis 28/28.
+- Un test de canal en échec avait laissé un canal `[TEST]` dans l'environnement de test : supprimé via la nouvelle route `DELETE`.
+
 ## Problèmes restants (lots suivants)
-- Pages non encore migrées : `alert()`/`window.confirm` subsistent (Bam, Knowledge, Templates, Tenants, Reports, Chat).
 - Le navigateur Playwright Chromium n'est pas installé sur ce poste : E2E exécutés avec Edge (`channel: "msedge"`). L'ancien Playwright de `_tools/` ne lance plus Edge (mode headless retiré) : utiliser celui de `frontend/node_modules`.

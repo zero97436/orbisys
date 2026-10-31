@@ -108,3 +108,23 @@ Comportement backend de la remédiation inchangé (droits, licence `remediation`
 | `pages/TopologyPage.tsx` | Réécrit : nœuds personnalisés (icône + texte de statut), cadres d'environnement, arêtes = dépendances déclarées uniquement (rouges si le parent est critique), couches parent → enfant, filtres, recherche, légende, minimap, clic vers l'hôte, couleurs par variables de thème | La mission interdit une topologie fictive ; l'ancienne disposition en colonne unique faisait passer un lien derrière un autre hôte (lecture fausse) |
 | `pages/OperationsMapPage.tsx` | `usePolling` 30 s, liste figée pendant l'édition, `GET /dashboard/availability` pour la tendance, flèches pour déplacer, confirmation de réinitialisation, toasts d'erreur, KPI corrigés, textes traduits | Badge « temps réel » sans rafraîchissement ; N+1 ; glisser-déposer souris seulement |
 | `pages/TvPage.tsx` | Voir correctifs P0 | — |
+
+## Lot 5 — IA et administration
+
+### Backend (ajouts rétrocompatibles)
+| Fichier | Changement | Justification |
+|---|---|---|
+| `routes/ai.py`, `ai_service.py` | `GET /ai/status` (joignable, modèle installé ; sans URL interne) | Indiquer la disponibilité d'Ollama avant de poser une question |
+| `core/license.py`, `routes/hosts.py` | `license_key_status()` et champ `key_status` | Une clé expirée ou invalide repassait en Community sans explication |
+| `routes/settings.py` | `DELETE /settings/notification-channels/{id}` (admin) | Aucun moyen de retirer un canal |
+
+### Frontend
+| Fichier | Changement |
+|---|---|
+| `pages/ChatPage.tsx` | Réécrit : état du modèle, réponses étiquetées IA, erreurs distinctes, plan confirmé (liste exacte, mot à retaper si suppression), résultat d'exécution honnête |
+| `components/LicenseCard.tsx` (nouveau) | Carte Licence des Paramètres |
+| `components/ChannelsCard.tsx` (nouveau) | Canaux : champs typés, validation, secrets, édition requise, test, suppression |
+| `components/GettingStarted.tsx` (nouveau) | Premiers pas sur le tableau de bord |
+| `pages/SettingsPage.tsx`, `components/BrandingPanel.tsx` | Branding admin seulement, confirmations, défilement vers `#section` |
+| `pages/BamPage.tsx`, `KnowledgePage.tsx`, `TemplatesPage.tsx`, `TenantsPage.tsx`, `ReportsPage.tsx` | Dialogues natifs remplacés, erreurs affichées, boutons nommés |
+| `playwright.config.ts` | 3 workers (stabilité sur un poste de développement) |

@@ -60,9 +60,17 @@ Les cinq P0 restants de l'audit ont été traités avant le Lot 4 : P0-4 (module
 | P1 | Carte des opérations : rafraîchissement réel 30 s (figé pendant l'édition), heure de mise à jour au lieu du badge « temps réel », tendance 24 h serveur (au lieu de 16 checks), déplacement au clavier, réinitialisation confirmée, erreurs affichées | `OperationsMapPage` | ✅ |
 | P1 | KPI trompeurs : « 0/0 » vert sans service métier, « Hôtes en ligne » qui comptait les hôtes sains | `OperationsMapPage` | ✅ |
 
-## Lot 5 — IA et administration
+## Lot 5 — IA et administration ✅ terminé
 
-Assistant : distinction données observées / analyse / hypothèses / actions proposées / actions exécutées, modèle utilisé, disponibilité d'Ollama. Paramètres : purge de rétention avec `requireText` (P0-5), BrandingPanel réservé aux administrateurs, canaux (validation, test, secrets jamais réaffichés), page licence (édition, statut, expiration, capacités, limites). Reports/Audit/Tenants : `UpgradeNotice` au lieu d'appeler une route absente (P0-4). Connexion : retrait des identifiants préremplis (P0-6). Onboarding guidé (premier équipement, premier contrôle, première notification).
+| Priorité | Changement | Fichiers | Statut |
+|---|---|---|---|
+| P0 | Cloisonnement tenant de toute l'IA (résumé, chat, plans) — voir correctifs P0 | `ai_service.py`, `routes/ai.py` | ✅ |
+| P1 | Assistant : état du modèle local (`GET /ai/status`), réponses marquées « générées par l'IA — à vérifier » avec l'heure de l'état utilisé, plans toujours confirmés (mot à retaper si suppression), « exécuté » distinct de « proposé » | `ChatPage`, `routes/ai.py` | ✅ |
+| P1 | Licence : `key_status` (aucune / valide / expirée / invalide, jamais la clé), carte Licence (édition, expiration et alerte 30 j, quota, fonctionnalités par édition, activation) | `LicenseCard`, `core/license.py`, `routes/hosts.py` | ✅ |
+| P1 | Canaux : suppression (`DELETE`), formulaire par champs avec validation (plage horaire invalide = 24 h/24 silencieusement auparavant), secrets jamais réaffichés, édition requise, test d'envoi | `ChannelsCard`, `routes/settings.py` | ✅ |
+| P1 | Image de marque réservée aux administrateurs, réinitialisation confirmée ; purge, utilisateurs et rôles confirmés | `SettingsPage`, `BrandingPanel` | ✅ |
+| P1 | Plus aucun `alert()` / `window.confirm` dans l'application | Métier, Connaissances, Templates, Tenants, Rapports | ✅ |
+| P1 | Premiers pas : 4 étapes calculées sur les données réelles (hôte, check, canal, résultats), action directe, masquables | `GettingStarted`, `DashboardPage` | ✅ |
 
 ## Lot 6 — Finalisation
 

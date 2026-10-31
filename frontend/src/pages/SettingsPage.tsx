@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Plus, Users, Trash2, Database, Eraser, KeyRound, ShieldCheck, Pencil, X, Check } from "lucide-react";
 import {
   createUser,
@@ -65,6 +66,14 @@ export default function SettingsPage() {
       .then((r) => { setRoles(r.data.roles); setSections(r.data.sections); })
       .catch(() => {});
   useEffect(load, [admin]);
+
+  // Lien direct vers une section (ex. /settings#channels depuis les premiers pas).
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const id = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    return () => clearTimeout(id);
+  }, [hash]);
 
   // Suppression définitive : confirmation explicite, mot à retaper, fenêtres affichées.
   const purge = async () => {

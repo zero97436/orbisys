@@ -52,6 +52,9 @@ import { usePolling } from "../hooks/usePolling";
 import { apiError, apiErrorMessage } from "../lib/apiError";
 import { cn } from "../lib/cn";
 import { useI18n } from "../lib/i18n";
+import { GettingStarted } from "../components/GettingStarted";
+import { useAuth } from "../lib/auth";
+import { canEdit, isAdmin } from "../lib/permissions";
 
 const HOUR = 3600 * 1000;
 /** Périodes proposées pour la disponibilité et la tendance (calcul serveur). */
@@ -79,6 +82,7 @@ const SECTION_TITLE: Record<string, string> = {
 
 export default function DashboardPage() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
   // Résumé + incidents : état partagé du shell (une seule requête, rafraîchie toutes les 20 s).
@@ -358,6 +362,14 @@ export default function DashboardPage() {
             )}
           </div>
         }
+      />
+
+      <GettingStarted
+        hosts={summary.hosts_total}
+        checks={summary.checks_total}
+        hasResults={(avail.data?.total ?? 0) > 0}
+        canEdit={canEdit(user)}
+        isAdmin={isAdmin(user)}
       />
 
       {layout.map((s, i) => {

@@ -1124,6 +1124,28 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "bam.removeCompTitle": { fr: "Retirer ce composant du service ?", en: "Remove this component from the service?" },
   "ten.deleteBody": { fr: "Ses hôtes et utilisateurs ne seront plus rattachés à aucun tenant (visibles par le personnel global uniquement).", en: "Its hosts and users will no longer belong to any tenant (visible to global staff only)." },
 
+  // Premiers pas
+  "gs.title": { fr: "Bienvenue dans Orbisys — premiers pas", en: "Welcome to Orbisys — getting started" },
+  "gs.progress": { fr: "{n} étape(s) sur {total} terminée(s). Le serveur répond : la configuration de base est en place.", en: "{n} of {total} step(s) done. The server is responding: the base setup is in place." },
+  "gs.hide": { fr: "Masquer les premiers pas", en: "Hide getting started" },
+  "gs.done": { fr: "terminé", en: "done" },
+  "gs.todo": { fr: "à faire", en: "to do" },
+  "gs.host.title": { fr: "Ajouter un équipement", en: "Add a device" },
+  "gs.host.desc": { fr: "Serveur, poste, routeur ou service web à superviser.", en: "Server, workstation, router or web service to monitor." },
+  "gs.host.cta": { fr: "Ajouter un hôte", en: "Add a host" },
+  "gs.check.title": { fr: "Configurer un premier contrôle", en: "Configure a first check" },
+  "gs.check.desc": { fr: "Un check vérifie un service (ping, HTTP, disque…) à intervalle régulier.", en: "A check verifies a service (ping, HTTP, disk…) at regular intervals." },
+  "gs.check.cta": { fr: "Créer un check", en: "Create a check" },
+  "gs.notify.title": { fr: "Être prévenu", en: "Get notified" },
+  "gs.notify.desc": { fr: "Un canal (e-mail, webhook…) reçoit les alertes quand un service tombe.", en: "A channel (e-mail, webhook…) receives alerts when a service fails." },
+  "gs.notify.cta": { fr: "Ajouter un canal", en: "Add a channel" },
+  "gs.results.title": { fr: "Voir les premiers résultats", en: "See the first results" },
+  "gs.results.desc": { fr: "Les résultats apparaissent dès la première exécution des checks.", en: "Results appear as soon as checks first run." },
+  "gs.results.cta": { fr: "Ouvrir la vue live", en: "Open the live view" },
+  "gs.askAdmin": { fr: "À configurer par un administrateur.", en: "To be configured by an administrator." },
+  "gs.waitPrev": { fr: "Terminez d'abord l'étape précédente.", en: "Finish the previous step first." },
+  "gs.docs": { fr: "Besoin de plus de détails ?", en: "Need more details?" },
+
   // Remédiation : validation humaine
   "alert.suggestedAi": { fr: "suggestion IA", en: "AI suggestion" },
   "rem.confirmTitle": { fr: "Exécuter cette action de remédiation ?", en: "Run this remediation action?" },
