@@ -168,7 +168,7 @@ export default function HostsPage() {
           <div role="group" aria-label={t("list.view")} className="flex items-center gap-0.5 rounded-lg border border-border bg-bg p-0.5">
             {([["table", List, t("list.viewTable")], ["cards", LayoutGrid, t("list.viewCards")]] as const).map(([v, Icon, label]) => (
               <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} title={label}
-                className={cn("grid h-8 w-8 place-items-center rounded", view === v ? "bg-brand text-white" : "text-ink-faint hover:text-ink")}>
+                className={cn("grid h-8 w-8 place-items-center rounded", view === v ? "bg-brand-soft text-white" : "text-ink-faint hover:text-ink")}>
                 <Icon className="h-4 w-4" aria-hidden /><span className="sr-only">{label}</span>
               </button>
             ))}

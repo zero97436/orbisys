@@ -81,7 +81,7 @@ export default function TemplatesPage() {
             <select
               value={capture.host_id}
               onChange={(e) => setCapture({ ...capture, host_id: Number(e.target.value) })}
-              className="input" required
+              className="input" required aria-label={tr("tpl.chooseSource")}
             >
               <option value={0}>{tr("tpl.chooseSource")}</option>
               {hosts.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
@@ -134,7 +134,7 @@ export default function TemplatesPage() {
                   <select
                     value={targets[t.id] ?? 0}
                     onChange={(e) => setTargets((p) => ({ ...p, [t.id]: Number(e.target.value) }))}
-                    className="input flex-1 text-xs"
+                    className="input flex-1 text-xs" aria-label={`${tr("tpl.applyTo")} : ${t.name}`}
                   >
                     <option value={0}>{tr("tpl.applyTo")}</option>
                     {hosts.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}

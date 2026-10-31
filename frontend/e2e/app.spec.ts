@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 /* Tests E2E du shell. Langue fixée à FR (sinon elle suit le navigateur) ;
  * les assertions portent sur la structure, pas sur les données de supervision. */
@@ -465,3 +466,30 @@ test("premiers pas : étapes calculées sur les données réelles, masquables", 
   await page.waitForTimeout(500);
   await expect(page.getByRole("region", { name: /premiers pas/ })).toHaveCount(0);
 });
+
+
+/* ---------- Lot 6 : accessibilité (WCAG 2.2 A/AA, axe-core) ---------- */
+
+const A11Y_ROUTES = ["dashboard", "monitoring", "operations", "bam", "hosts", "checks", "templates", "containers", "apm",
+  "topology", "geo", "incidents", "tickets", "events", "reports", "assistant", "knowledge", "tenants", "audit", "settings", "docs", "tv"];
+
+for (const theme of ["dark", "light"] as const) {
+  test(`accessibilité WCAG A/AA : toutes les pages, thème ${theme}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.addInitScript((th) => localStorage.setItem("orbisys_theme", th), theme);
+    await login(page);
+    const failures: string[] = [];
+    for (const r of [...A11Y_ROUTES, "login"]) {
+      if (r === "login") await page.evaluate(() => localStorage.removeItem("sh_token"));
+      await page.goto(`/${r}`);
+      await page.waitForLoadState("networkidle");
+      // Carte Leaflet et canevas de topologie : zones graphiques dotées d'alternatives textuelles.
+      const res = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .exclude(".leaflet-container").exclude(".react-flow__renderer")
+        .analyze();
+      for (const v of res.violations) failures.push(`/${r} ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target.join(" ")}`);
+    }
+    expect(failures).toEqual([]);
+  });
+}

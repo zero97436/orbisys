@@ -158,7 +158,7 @@ export default function HostDetailPage() {
               <div role="group" aria-label={t("dash.period")} className="flex items-center gap-0.5 rounded-lg border border-border bg-bg p-0.5">
                 {(["24h", "30d"] as const).map((w) => (
                   <button key={w} type="button" aria-pressed={mwindow === w} onClick={() => setMwindow(w)}
-                    className={`rounded px-2.5 py-1 text-xs font-medium ${mwindow === w ? "bg-brand text-white" : "text-ink-soft hover:text-ink"}`}>
+                    className={`rounded px-2.5 py-1 text-xs font-medium ${mwindow === w ? "bg-brand-soft text-white" : "text-ink-soft hover:text-ink"}`}>
                     {t(w === "24h" ? "dash.period.24h" : "dash.period.30d")}
                   </button>
                 ))}

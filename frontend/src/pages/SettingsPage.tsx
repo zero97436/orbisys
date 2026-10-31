@@ -161,14 +161,14 @@ export default function SettingsPage() {
         <Card>
           <SectionTitle title={t("set.usersRoles")} icon={Users} />
           <form onSubmit={submitUser} className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-5">
-            <input required type="email" placeholder="Email" value={userForm.email}
+            <input required type="email" placeholder={t("login.email")} aria-label={t("login.email")} value={userForm.email}
               onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} className="input" />
             <input required type="password" placeholder={t("set.pwMin")} value={userForm.password}
               onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} className="input" />
             <input required type="password" placeholder={t("set.pwConfirm")} value={userConfirm}
               onChange={(e) => setUserConfirm(e.target.value)}
               className={`input ${userConfirm && userForm.password !== userConfirm ? "ring-1 ring-status-critical" : ""}`} />
-            <select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} className="input">
+            <select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} className="input" aria-label={t("set.roleField")}>
               {roles.map((r) => <option key={r.name} value={r.name}>{dispRole(r.name)}</option>)}
             </select>
             <button className="btn-primary"><Plus className="h-4 w-4" /> {t("common.add")}</button>

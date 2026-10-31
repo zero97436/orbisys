@@ -9,8 +9,8 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { AvailabilityChart } from "../components/charts/AvailabilityChart";
 import { Loading } from "../components/States";
 import { availabilityBuckets, availabilityRatio } from "../lib/series";
-import { formatPercent } from "../lib/format";
-import { useI18n } from "../lib/i18n";
+import { formatNumber, formatPercent } from "../lib/format";
+import { getLang, useI18n } from "../lib/i18n";
 import { useToast } from "../components/ui/Toast";
 import { apiError, apiErrorMessage } from "../lib/apiError";
 import { availabilityStatus, ACCENT_OF } from "../lib/status";
@@ -21,8 +21,8 @@ function formatDuration(sec: number | null): string {
   if (sec == null) return "—";
   if (sec < 60) return `${Math.round(sec)} s`;
   if (sec < 3600) return `${Math.round(sec / 60)} min`;
-  if (sec < 86400) return `${(sec / 3600).toFixed(1)} h`;
-  return `${(sec / 86400).toFixed(1)} j`;
+  if (sec < 86400) return `${formatNumber(sec / 3600, 1)} h`;
+  return `${formatNumber(sec / 86400, 1)} ${getLang() === "en" ? "d" : "j"}`;
 }
 
 function slaAccent(av: number): "ok" | "warning" | "critical" {
@@ -68,7 +68,7 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(data as Blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "rapport-supervision-30j.pdf";
+      a.download = t("rep.pdfFile");
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {

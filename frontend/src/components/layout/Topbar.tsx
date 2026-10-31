@@ -31,7 +31,7 @@ function Segmented<T extends string>({ label, value, options, onChange, classNam
           title={o.title}
           className={cn(
             "grid h-6 min-w-6 place-items-center rounded px-1 text-[11px] font-semibold uppercase",
-            value === o.v ? "bg-brand text-white" : "text-ink-faint hover:text-ink",
+            value === o.v ? "bg-brand-soft text-white" : "text-ink-faint hover:text-ink",
           )}
         >
           {o.content}
@@ -188,11 +188,10 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
           type="button"
           onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
           className="flex items-center gap-2 rounded-lg border border-border bg-bg px-2.5 py-1.5 text-xs text-ink-faint transition-colors hover:text-ink"
-          aria-label={t("topbar.search")}
         >
           <Search className="h-3.5 w-3.5" aria-hidden />
-          <span className="hidden md:inline">{t("topbar.search")}</span>
-          <kbd className="hidden rounded border border-border bg-bg-soft px-1.5 py-0.5 text-[10px] md:inline">Ctrl K</kbd>
+          <span className="sr-only md:not-sr-only">{t("topbar.search")}</span>
+          <kbd className="hidden rounded border border-border bg-bg-soft px-1.5 py-0.5 text-[10px] md:inline" aria-hidden>Ctrl K</kbd>
         </button>
         <IncidentsButton />
         <Link to="/tv" className="icon-btn hidden lg:grid" aria-label={t("topbar.tv")} title={t("topbar.tv")}>

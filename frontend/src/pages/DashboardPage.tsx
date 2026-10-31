@@ -181,7 +181,7 @@ export default function DashboardPage() {
     <div role="group" aria-label={t("dash.period")} className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-bg p-0.5">
       {PERIODS.map((p) => (
         <button key={p.id} type="button" aria-pressed={periodId === p.id} onClick={() => setPeriodId(p.id)}
-          className={cn("whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-semibold", periodId === p.id ? "bg-brand text-white" : "text-ink-faint hover:text-ink")}>
+          className={cn("whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-semibold", periodId === p.id ? "bg-brand-soft text-white" : "text-ink-faint hover:text-ink")}>
           {t(p.labelKey)}
         </button>
       ))}
@@ -311,7 +311,7 @@ export default function DashboardPage() {
             <div role="group" aria-label={t("dash.sec.fleet")} className="flex items-center gap-0.5 rounded-lg border border-border bg-bg p-0.5">
               {(["attention", "all"] as const).map((f) => (
                 <button key={f} type="button" aria-pressed={fleetFilter === f} onClick={() => setFleetFilter(f)}
-                  className={cn("rounded px-2 py-0.5 text-[11px] font-semibold", fleetFilter === f ? "bg-brand text-white" : "text-ink-faint hover:text-ink")}>
+                  className={cn("rounded px-2 py-0.5 text-[11px] font-semibold", fleetFilter === f ? "bg-brand-soft text-white" : "text-ink-faint hover:text-ink")}>
                   {f === "attention" ? `${t("dash.fleet.attention")} (${attention.length})` : t("common.all")}
                 </button>
               ))}
@@ -404,10 +404,14 @@ export default function DashboardPage() {
 
 function HeroStat({ label, value, to, className }: { label: string; value: number; to: string; className?: string }) {
   return (
-    <Link to={to} className="rounded-lg p-1 -m-1 transition hover:bg-bg-soft/60">
+    <div>
       <dt className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</dt>
-      <dd className={cn("mt-0.5 text-xl font-bold tabular-nums text-ink", className)}>{formatNumber(value)}</dd>
-    </Link>
+      <dd>
+        <Link to={to} className={cn("-m-1 inline-block rounded-lg p-1 text-xl font-bold tabular-nums text-ink transition hover:bg-bg-soft/60", className)}>
+          {formatNumber(value)}
+        </Link>
+      </dd>
+    </div>
   );
 }
 

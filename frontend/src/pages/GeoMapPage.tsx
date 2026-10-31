@@ -95,7 +95,7 @@ export default function GeoMapPage() {
     if (!placing) return;
     const host = hosts.find((h) => h.id === placing);
     await updateHost(placing, { latitude: Number(lat.toFixed(6)), longitude: Number(lon.toFixed(6)) });
-    setFlash(`📍 ${host?.name} placé (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+    setFlash(t("geo.placed").replace("{name}", host?.name ?? "").replace("{lat}", lat.toFixed(4)).replace("{lon}", lon.toFixed(4)));
     setPlacing(0);
     load();
     setTimeout(() => setFlash(null), 4000);
@@ -104,7 +104,7 @@ export default function GeoMapPage() {
   const locateMe = () => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
-      () => setFlash("⚠️ Géolocalisation refusée par le navigateur"),
+      () => setFlash(t("geo.denied")),
       { enableHighAccuracy: true, timeout: 8000 },
     );
   };

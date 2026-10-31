@@ -6,15 +6,15 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { Card, SectionTitle, MotionGrid } from "../components/ui/Card";
 import { MetricArea } from "../components/charts/MetricArea";
 import { EmptyState, Loading } from "../components/States";
-import { timeAgo } from "../lib/format";
+import { localeOf, timeAgo } from "../lib/format";
 import { cn } from "../lib/cn";
 import { useI18n, translate, type Lang } from "../lib/i18n";
 
 function health(app: ApmApp, lang: Lang): { color: string; label: string } {
-  if (app.requests === 0) return { color: "#64748B", label: translate(lang, "apm.silent") };
-  if (app.error_rate >= 10) return { color: "#EF4444", label: translate(lang, "apm.degraded") };
-  if (app.error_rate >= 5 || (app.latency_ms ?? 0) >= 1000) return { color: "#F59E0B", label: translate(lang, "apm.watch") };
-  return { color: "#10B981", label: translate(lang, "apm.healthy") };
+  if (app.requests === 0) return { color: "rgb(var(--st-unknown))", label: translate(lang, "apm.silent") };
+  if (app.error_rate >= 10) return { color: "rgb(var(--st-critical))", label: translate(lang, "apm.degraded") };
+  if (app.error_rate >= 5 || (app.latency_ms ?? 0) >= 1000) return { color: "rgb(var(--st-warning))", label: translate(lang, "apm.watch") };
+  return { color: "rgb(var(--st-ok))", label: translate(lang, "apm.healthy") };
 }
 
 export default function ApmPage() {
@@ -49,7 +49,7 @@ export default function ApmPage() {
 
   const chart = useMemo(() => {
     const fmt = (iso: string) =>
-      new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      new Date(iso).toLocaleTimeString(localeOf(), { hour: "2-digit", minute: "2-digit" });
     return {
       rpm: series.map((p) => ({ label: fmt(p.t), value: p.rpm })),
       err: series.map((p) => ({ label: fmt(p.t), value: p.error_rate })),
@@ -69,7 +69,7 @@ export default function ApmPage() {
         subtitleKey="page.apm.sub"
         actions={
           <button onClick={refresh} className="btn-ghost" disabled={refreshing}>
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} /> Actualiser
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} aria-hidden /> {t("common.refresh")}
           </button>
         }
       />
@@ -78,12 +78,12 @@ export default function ApmPage() {
         <Card>
           <EmptyState message={t("apm.empty")} />
           <div className="mx-auto max-w-2xl pb-4 text-xs text-ink-faint">
-            <p className="mb-2">Envoyez des métriques depuis vos applications (toutes les 30-60 s) :</p>
+            <p className="mb-2">{t("apm.sendHint")}</p>
             <pre className="overflow-x-auto rounded-lg border border-border bg-bg-soft p-3">
 {`POST /api/apm/ingest
 {"app_name": "mon-erp", "requests": 420, "errors": 3, "latency_ms": 185}`}
             </pre>
-            <p className="mt-2">Le backend Orbisys s'auto-instrumente : ses métriques apparaîtront ici d'elles-mêmes.</p>
+            <p className="mt-2">{t("apm.selfHint")}</p>
           </div>
         </Card>
       ) : (
@@ -108,17 +108,17 @@ export default function ApmPage() {
                       <Boxes className="h-4 w-4 shrink-0 text-ink-faint" />
                       <p className="truncate font-semibold text-ink">{a.app_name}</p>
                     </div>
-                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `${h.color}1f`, color: h.color }}>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${h.color} 9%, transparent)`, color: h.color }}>
                       {h.label}
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <Kpi label={t("apm.reqMin")} value={a.rpm} color="#3B82F6" />
-                    <Kpi label={t("apm.errors")} value={`${a.error_rate}%`} color={a.error_rate >= 5 ? "#EF4444" : "#10B981"} />
-                    <Kpi label={t("apm.latency")} value={a.latency_ms != null ? `${a.latency_ms} ms` : "—"} color={(a.latency_ms ?? 0) >= 1000 ? "#F59E0B" : "#8B5CF6"} />
+                    <Kpi label={t("apm.reqMin")} value={a.rpm} color="rgb(var(--st-info))" />
+                    <Kpi label={t("apm.errors")} value={`${a.error_rate}%`} color={a.error_rate >= 5 ? "rgb(var(--st-critical))" : "rgb(var(--st-ok))"} />
+                    <Kpi label={t("apm.latency")} value={a.latency_ms != null ? `${a.latency_ms} ms` : "—"} color={(a.latency_ms ?? 0) >= 1000 ? "rgb(var(--st-warning))" : "rgb(var(--st-maintenance))"} />
                   </div>
                   {a.last_seen && (
-                    <p className="mt-2 text-right text-[11px] text-ink-faint">vu {timeAgo(a.last_seen)}</p>
+                    <p className="mt-2 text-right text-[11px] text-ink-faint">{t("apm.seen")} {timeAgo(a.last_seen)}</p>
                   )}
                 </motion.button>
               );
@@ -129,7 +129,7 @@ export default function ApmPage() {
           {sel && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Card>
-                <SectionTitle title={`Débit — ${sel.app_name}`} icon={Activity} />
+                <SectionTitle title={`${t("apm.throughput")} — ${sel.app_name}`} icon={Activity} />
                 <MetricArea id="apm-rpm" data={chart.rpm} color="#3B82F6" unit="" height={190} />
               </Card>
               <Card>
@@ -145,8 +145,8 @@ export default function ApmPage() {
 
           <p className="flex items-center gap-1.5 text-xs text-ink-faint">
             <Gauge className="h-3.5 w-3.5" />
-            Pour alerter sur une application : créez un check de type <code className="rounded bg-bg-soft px-1">apm</code> avec
-            <code className="rounded bg-bg-soft px-1">{'{"app": "nom", "metric": "error_rate"}'}</code> et vos seuils.
+            {t("apm.alertHint1")} <code className="rounded bg-bg-soft px-1">apm</code> {t("apm.alertHint2")}{" "}
+            <code className="rounded bg-bg-soft px-1">{'{"app": "…", "metric": "error_rate"}'}</code> {t("apm.alertHint3")}
           </p>
         </>
       )}

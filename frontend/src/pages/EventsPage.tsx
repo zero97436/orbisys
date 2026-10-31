@@ -120,7 +120,7 @@ export default function EventsPage() {
             onClick={() => setFilter(f.value)}
             className={cn(
               "rounded-md px-3 py-1 text-xs font-medium transition",
-              filter === f.value ? "bg-brand text-white" : "text-ink-soft hover:text-ink",
+              filter === f.value ? "bg-brand-soft text-white" : "text-ink-soft hover:text-ink",
             )}
           >
             {t(f.labelKey)}

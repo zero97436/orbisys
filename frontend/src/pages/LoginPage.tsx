@@ -81,7 +81,7 @@ export default function LoginPage() {
               key={l}
               type="button"
               onClick={() => setLang(l)}
-              className={`grid h-6 w-7 place-items-center rounded text-[11px] font-semibold uppercase ${lang === l ? "bg-brand text-white" : "text-ink-faint hover:text-ink"}`}
+              className={`grid h-6 w-7 place-items-center rounded text-[11px] font-semibold uppercase ${lang === l ? "bg-brand-soft text-white" : "text-ink-faint hover:text-ink"}`}
             >
               {l}
             </button>
@@ -130,7 +130,7 @@ export default function LoginPage() {
         {ssoEnabled && (
           <>
             <div className="my-4 flex items-center gap-3 text-[11px] uppercase tracking-wide text-ink-faint">
-              <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
+              <span className="h-px flex-1 bg-border" /> {t("login.or")} <span className="h-px flex-1 bg-border" />
             </div>
             <a href="/api/auth/sso/login" className="btn-ghost w-full justify-center py-2.5">
               <KeyRound className="h-4 w-4" /> {t("login.sso")}

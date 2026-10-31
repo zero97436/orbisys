@@ -26,10 +26,10 @@ const STATUS_KEY: Record<string, string> = {
   open: "tk.status.open", in_progress: "tk.status.in_progress", resolved: "tk.status.resolved", closed: "tk.status.closed",
 };
 const STATUS_COLOR: Record<string, string> = {
-  open: "#EF4444", in_progress: "#F59E0B", resolved: "#10B981", closed: "#64748B",
+  open: "rgb(var(--st-critical))", in_progress: "rgb(var(--st-warning))", resolved: "rgb(var(--st-ok))", closed: "rgb(var(--st-unknown))",
 };
 const PRIO_COLOR: Record<string, string> = {
-  low: "#64748B", medium: "#3B82F6", high: "#F59E0B", critical: "#EF4444",
+  low: "rgb(var(--st-unknown))", medium: "rgb(var(--st-info))", high: "rgb(var(--st-warning))", critical: "rgb(var(--st-critical))",
 };
 const PRIO_KEY: Record<string, string> = {
   low: "tk.prio.low", medium: "tk.prio.medium", high: "tk.prio.high", critical: "tk.prio.critical",
@@ -202,7 +202,7 @@ export default function TicketsPage() {
           active={mineOnly}
           onClick={() => setMineOnly((m) => !m)}
           label={`${tr("tk.mine")} (${tickets.filter((t) => t.assigned_to === user?.email).length})`}
-          color="#8B5CF6"
+          color="rgb(var(--st-maintenance))"
         />
       </div>
 
@@ -265,14 +265,14 @@ export default function TicketsPage() {
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                         </button>
                       )}
-                      <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `${PRIO_COLOR[t.priority]}1f`, color: PRIO_COLOR[t.priority] }}>
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${PRIO_COLOR[t.priority]} 9%, transparent)`, color: PRIO_COLOR[t.priority] }}>
                         {tr(PRIO_KEY[t.priority])}
                       </span>
                     </div>
                   </div>
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
-                  <span className="rounded-full px-2 py-0.5 font-medium" style={{ background: `${STATUS_COLOR[t.status]}1f`, color: STATUS_COLOR[t.status] }}>
+                  <span className="rounded-full px-2 py-0.5 font-medium" style={{ background: `color-mix(in srgb, ${STATUS_COLOR[t.status]} 9%, transparent)`, color: STATUS_COLOR[t.status] }}>
                     {tr(STATUS_KEY[t.status])}
                   </span>
                   {t.assigned_to && (
@@ -440,7 +440,7 @@ function Chip({ active, onClick, label, color }: { active: boolean; onClick: () 
       onClick={onClick}
       className={cn("rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
         active ? "border-brand bg-brand/15 text-brand" : "border-border text-ink-soft hover:bg-bg-soft")}
-      style={active && color ? { borderColor: color, background: `${color}1f`, color } : undefined}
+      style={active && color ? { borderColor: color, background: `color-mix(in srgb, ${color} 9%, transparent)`, color } : undefined}
     >
       {label}
     </button>

@@ -51,7 +51,7 @@ export default function TvPage() {
 
   if (!data) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-ink-soft">
+      <div className="theme-dark-vars flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-ink-soft">
         {loading ? (
           <p className="text-2xl">{t("common.loading")}</p>
         ) : (
@@ -74,7 +74,7 @@ export default function TvPage() {
   const stale = !!error;
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-black p-6 text-ink lg:p-8">
+    <div className="theme-dark-vars flex min-h-screen flex-col gap-6 bg-black p-6 text-ink lg:p-8">
       {/* En-tête : marque, horloge, actions */}
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 text-ink-soft">

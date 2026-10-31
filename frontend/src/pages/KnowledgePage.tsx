@@ -115,7 +115,7 @@ export default function KnowledgePage() {
           </div>
           <p className="mt-3 mb-1 text-xs text-ink-faint">{t("kn.pasteHint")}</p>
           <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={4}
-                    placeholder={"## Problème A\nSolution A…\n\n## Problème B\nSolution B…"}
+                    placeholder={t("kn.examplePh")}
                     className="input w-full font-mono text-xs" />
           <button onClick={importMarkdown} disabled={busy || !bulk.trim()} className="btn-primary mt-2">{t("kn.importDoc")}</button>
         </Card>

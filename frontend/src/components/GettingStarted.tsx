@@ -66,7 +66,7 @@ export function GettingStarted({ hosts, checks, hasResults, canEdit, isAdmin }: 
         })}
       </ol>
       <p className="mt-3 text-xs text-ink-faint">
-        {t("gs.docs")} <Link to="/docs" className="text-brand hover:underline">{t("nav.docs")}</Link>
+        {t("gs.docs")} <Link to="/docs" className="text-brand underline underline-offset-2">{t("nav.docs")}</Link>
       </p>
     </section>
   );

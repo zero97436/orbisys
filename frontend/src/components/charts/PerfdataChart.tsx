@@ -8,6 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import { AXIS, ChartTooltip } from "./ChartTooltip";
+import { useI18n } from "../../lib/i18n";
 
 export function PerfdataChart({
   data,
@@ -20,10 +21,11 @@ export function PerfdataChart({
   color?: string;
   height?: number;
 }) {
+  const { t } = useI18n();
   if (data.length === 0) {
     return (
       <div className="flex h-[220px] items-center justify-center text-sm text-ink-faint">
-        Aucune donnée numérique pour cette métrique.
+        {t("chart.noNumeric")}
       </div>
     );
   }

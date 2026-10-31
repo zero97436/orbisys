@@ -147,7 +147,7 @@ export default function ChatPage() {
                 )}
                 <div role={m.role === "error" ? "alert" : undefined}
                   className={cn("whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
-                    m.role === "user" ? "bg-brand text-white"
+                    m.role === "user" ? "bg-brand-soft text-white"
                       : m.role === "error" ? "border border-status-warning/40 bg-status-warning/10 text-ink"
                       : "border border-border bg-bg-soft/60 text-ink-soft")}>
                   {m.content}

@@ -29,7 +29,7 @@ export function FilterChips<T extends string>({ label, value, options, onChange 
           className={cn("chip transition", value === o.v ? "border-brand bg-brand/15 text-ink" : "hover:text-ink")}>
           {o.tone && <span className={cn("h-2 w-2 rounded-full", o.tone)} aria-hidden />}
           {o.label}
-          {o.count != null && <span className="tabular-nums text-ink-faint">{o.count}</span>}
+          {o.count != null && <span className={cn("tabular-nums", value === o.v ? "text-ink-soft" : "text-ink-faint")}>{o.count}</span>}
         </button>
       ))}
     </div>

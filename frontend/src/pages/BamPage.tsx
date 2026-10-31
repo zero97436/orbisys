@@ -86,24 +86,21 @@ export default function BamPage() {
             </select>
             <input placeholder={t("common.description")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" />
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input" title={t("bam.layer")}>
-              <option>Applications métier</option>
-              <option>Back-Office</option>
-              <option>Infrastructure</option>
-              <option>Général</option>
+              {["Applications métier", "Back-Office", "Infrastructure", "Général"].map((c) => <option key={c} value={c}>{t(`bam.cat.${c}`)}</option>)}
             </select>
             <select value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} className="input" title={t("bam.tileIcon")}>
               <option value="">{t("bam.iconAuto")}</option>
-              <option value="cart">🛒 Boutique</option>
-              <option value="truck">🚚 Logistique</option>
-              <option value="warehouse">🏬 Entrepôt</option>
-              <option value="mail">✉️ E-mail</option>
-              <option value="finance">💵 Finance</option>
-              <option value="hr">👥 RH</option>
-              <option value="globe">🌐 Intranet/Web</option>
-              <option value="server">🖥️ Serveur</option>
-              <option value="database">🗄️ Base de données</option>
-              <option value="cloud">☁️ Cloud</option>
-              <option value="network">🔗 Réseau</option>
+              <option value="cart">🛒 {t("bam.ic.cart")}</option>
+              <option value="truck">🚚 {t("bam.ic.truck")}</option>
+              <option value="warehouse">🏬 {t("bam.ic.warehouse")}</option>
+              <option value="mail">✉️ {t("bam.ic.mail")}</option>
+              <option value="finance">💵 {t("bam.ic.finance")}</option>
+              <option value="hr">👥 {t("bam.ic.hr")}</option>
+              <option value="globe">🌐 {t("bam.ic.globe")}</option>
+              <option value="server">🖥️ {t("bam.ic.server")}</option>
+              <option value="database">🗄️ {t("bam.ic.database")}</option>
+              <option value="cloud">☁️ {t("bam.ic.cloud")}</option>
+              <option value="network">🔗 {t("bam.ic.network")}</option>
               <option value="shield">🛡️ Sécurité</option>
             </select>
             <button className="btn-primary sm:col-span-3">{t("common.create")}</button>
