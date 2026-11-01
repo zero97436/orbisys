@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Gauge, CalendarDays, CalendarRange, Timer, AlertTriangle, Wrench, FileDown } from "lucide-react";
-import { listChecks, listResults, getSlaReport, getMttrReport, downloadReportPdf, type SlaReport, type MttrReport } from "../api/endpoints";
-import type { Check, CheckResult } from "../types";
+import { getAvailability, getSlaReport, getMttrReport, downloadReportPdf, type AvailabilityReport, type SlaReport, type MttrReport } from "../api/endpoints";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card, SectionTitle } from "../components/ui/Card";
 import { MetricCard } from "../components/ui/MetricCard";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { AvailabilityChart } from "../components/charts/AvailabilityChart";
-import { Loading } from "../components/States";
-import { availabilityBuckets, availabilityRatio } from "../lib/series";
-import { formatPercent } from "../lib/format";
-import { useI18n } from "../lib/i18n";
+import { ErrorState, Loading } from "../components/States";
+import { bucketsFromReport } from "../lib/series";
+import { formatNumber, formatPercent } from "../lib/format";
+import { getLang, useI18n } from "../lib/i18n";
+import { useToast } from "../components/ui/Toast";
+import { apiError, apiErrorMessage } from "../lib/apiError";
+import { availabilityStatus, ACCENT_OF } from "../lib/status";
 
 const DAY = 24 * 3600 * 1000;
 
@@ -18,8 +20,8 @@ function formatDuration(sec: number | null): string {
   if (sec == null) return "—";
   if (sec < 60) return `${Math.round(sec)} s`;
   if (sec < 3600) return `${Math.round(sec / 60)} min`;
-  if (sec < 86400) return `${(sec / 3600).toFixed(1)} h`;
-  return `${(sec / 86400).toFixed(1)} j`;
+  if (sec < 86400) return `${formatNumber(sec / 3600, 1)} h`;
+  return `${formatNumber(sec / 86400, 1)} ${getLang() === "en" ? "d" : "j"}`;
 }
 
 function slaAccent(av: number): "ok" | "warning" | "critical" {
@@ -28,33 +30,44 @@ function slaAccent(av: number): "ok" | "warning" | "critical" {
 
 export default function ReportsPage() {
   const { t } = useI18n();
-  const [results, setResults] = useState<CheckResult[]>([]);
+  const toast = useToast();
+  // Disponibilité calculée par le serveur sur TOUS les checks et toute la fenêtre
+  // (3 requêtes au lieu de 31, et plus d'échantillon limité aux 30 premiers checks).
+  const [avail, setAvail] = useState<{ d1: AvailabilityReport; d7: AvailabilityReport; d30: AvailabilityReport } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const [sla, setSla] = useState<SlaReport | null>(null);
   const [mttr, setMttr] = useState<MttrReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [proOnly, setProOnly] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     (async () => {
-      const { data: checks } = await listChecks();
-      const res = await Promise.all(checks.slice(0, 30).map((c: Check) => listResults(c.id, 500)));
-      setResults(res.flatMap((r) => r.data));
+      try {
+        const [d1, d7, d30] = await Promise.all([getAvailability(24, 24), getAvailability(24 * 7, 28), getAvailability(24 * 30, 30)]);
+        setAvail({ d1: d1.data, d7: d7.data, d30: d30.data });
+      } catch {
+        setError(t("common.loadError"));
+      }
       try {
         const [s, m] = await Promise.all([getSlaReport(30), getMttrReport(30)]);
         setSla(s.data);
         setMttr(m.data);
       } catch (e: unknown) {
-        const status = (e as { response?: { status?: number } })?.response?.status;
-        if (status === 403) setProOnly(true);
+        if (apiError(e).status === 403) setProOnly(true);
+        else toast.error(apiErrorMessage(e, t("common.loadError")));
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
-  }, []);
+  }, [reload]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const avail = useMemo(() => availabilityRatio(results), [results]);
-  const a24 = useMemo(() => availabilityBuckets(results, DAY, 24), [results]);
-  const a7 = useMemo(() => availabilityBuckets(results, 7 * DAY, 28), [results]);
-  const a30 = useMemo(() => availabilityBuckets(results, 30 * DAY, 30), [results]);
+  const pct30 = avail?.d30.availability ?? null;
+  const a24 = useMemo(() => (avail ? bucketsFromReport(avail.d1.buckets, DAY) : []), [avail]);
+  const a7 = useMemo(() => (avail ? bucketsFromReport(avail.d7.buckets, 7 * DAY) : []), [avail]);
+  const a30 = useMemo(() => (avail ? bucketsFromReport(avail.d30.buckets, 30 * DAY) : []), [avail]);
 
   const [exporting, setExporting] = useState(false);
   const exportPdf = async () => {
@@ -64,19 +77,19 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(data as Blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "rapport-supervision-30j.pdf";
+      a.download = t("rep.pdfFile");
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      if ((e as { response?: { status?: number } })?.response?.status === 403) {
-        alert(t("rep.pdfProOnly"));
-      }
+      if (apiError(e).status === 403) toast.info(t("rep.pdfProOnly"));
+      else toast.error(apiErrorMessage(e, t("common.actionFailed")));
     } finally {
       setExporting(false);
     }
   };
 
   if (loading) return <Loading />;
+  if (error && !avail) return <ErrorState message={error} onRetry={() => setReload((n) => n + 1)} />;
 
   return (
     <div className="space-y-6">
@@ -97,8 +110,8 @@ export default function ReportsPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard label={t("rep.globalAvail")} value={formatPercent(avail, 2)} icon={Gauge} accent={avail >= 99 ? "ok" : avail >= 95 ? "warning" : "critical"} />
-        <MetricCard label={t("rep.resultsAnalyzed")} value={results.length} icon={CalendarDays} accent="info" />
+        <MetricCard label={t("rep.globalAvail")} value={pct30 == null ? "—" : formatPercent(pct30, 2)} icon={Gauge} accent={ACCENT_OF[availabilityStatus(pct30)]} />
+        <MetricCard label={t("rep.resultsAnalyzed")} value={formatNumber(avail?.d30.total ?? 0)} icon={CalendarDays} accent="info" />
         <MetricCard label={t("rep.window")} value={t("rep.days30")} icon={CalendarRange} accent="neutral" />
       </div>
 
@@ -120,7 +133,7 @@ export default function ReportsPage() {
           </div>
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-bg-soft/50 text-left text-xs uppercase tracking-wide text-ink-faint">
-              <tr><th className="px-4 py-3">{t("ten.host")}</th><th className="px-4 py-3">{t("rep.availability")}</th><th className="px-4 py-3">{t("rep.samples")}</th><th className="px-4 py-3"></th></tr>
+              <tr><th className="px-4 py-3">{t("ten.host")}</th><th className="px-4 py-3">{t("rep.availability")}</th><th className="px-4 py-3">{t("rep.samples")}</th><th className="px-4 py-3"><span className="sr-only">{t("list.col.status")}</span></th></tr>
             </thead>
             <tbody>
               {sla.hosts.map((h) => (

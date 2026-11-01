@@ -56,8 +56,10 @@ def list_hosts(db: Session = Depends(get_db), user: User = Depends(get_current_u
 @router.get("/license")
 def license_info(db: Session = Depends(get_db)):
     """Plan de licence + quota d'hôtes utilisé (affiché dans l'UI)."""
+    from app.core.license import license_key_status
+
     lic = get_license()
-    return {**lic, "used": db.query(Host).count()}
+    return {**lic, "used": db.query(Host).count(), "key_status": license_key_status()}
 
 
 @router.post("", response_model=HostOut, status_code=201, dependencies=[Depends(require_operator)])

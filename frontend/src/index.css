@@ -2,55 +2,121 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============ POLICES (hébergées localement, licence OFL : public/fonts) ============ */
+@font-face {
+  font-family: "Schibsted Grotesk"; font-style: normal; font-weight: 400 900; font-display: swap;
+  src: url("/fonts/schibsted-grotesk-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Schibsted Grotesk"; font-style: normal; font-weight: 400 900; font-display: swap;
+  src: url("/fonts/schibsted-grotesk-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+
 /* ============ THÈME ============
    Palette pilotée par variables (triplets RGB pour le <alpha-value> Tailwind).
-   :root nu = SOMBRE (défaut + système sombre). Le mode clair s'active soit
-   explicitement (data-theme="light"), soit en « système » sur un OS clair. */
+   :root nu = SOMBRE (défaut, identité Orbisys bleu nuit). Le mode clair s'active
+   explicitement (data-theme="light") ou en « système » sur un OS clair.
+   Les couleurs de statut ont une variante par thème pour rester lisibles (AA). */
 :root {
-  /* Accent — surchargeable par le branding (plan Professional). */
-  --brand-rgb: 59 130 246;
-  --brand-soft-rgb: 29 78 216;
+  /* Accent principal — surchargeable par le branding (plan Professional). */
+  --brand-rgb: 96 165 250;
+  --brand-soft-rgb: 37 99 235;
+  /* Accents secondaires de la marque */
+  --cyan: 56 189 248;
+  --violet: 139 92 246;
 
-  /* Sombre (défaut) */
-  --bg: 11 18 32;
-  --bg-soft: 14 22 38;
-  --card: 17 24 39;
-  --border: 31 41 55;
-  --border-soft: 23 32 51;
-  --ink: 229 234 242;
-  --ink-soft: 148 163 184;
-  --ink-faint: 100 116 139;
-  --scroll: 31 41 55;
+  /* Sombre (défaut) — bleu nuit Orbisys */
+  --bg: 8 12 30;
+  --bg-soft: 11 16 38;
+  --card: 15 21 48;
+  --border: 36 46 88;
+  --border-soft: 24 32 66;
+  --ink: 236 240 252;
+  --ink-soft: 172 182 216;
+  --ink-faint: 132 143 182;
+  --scroll: 44 55 102;
+
+  /* Statuts — teintes claires sur fond sombre */
+  --st-ok: 52 211 153;
+  --st-warning: 251 191 36;
+  --st-critical: 248 113 113;
+  --st-unknown: 148 163 184;
+  --st-info: 96 165 250;
+  --st-maintenance: 167 139 250;
   color-scheme: dark;
 }
 
 /* Palette claire (valeurs communes aux 2 déclencheurs) */
 :root[data-theme="light"],
 .theme-light-vars {
-  --bg: 247 249 252;
+  --brand-rgb: 29 78 216;
+  --brand-soft-rgb: 30 64 175;
+  --bg: 245 247 252;
   --bg-soft: 255 255 255;
   --card: 255 255 255;
-  --border: 226 232 240;
-  --border-soft: 241 245 249;
-  --ink: 15 23 42;
-  --ink-soft: 71 85 105;
-  --ink-faint: 148 163 184;
+  --border: 218 224 238;
+  --border-soft: 236 240 248;
+  --ink: 11 18 48;
+  --ink-soft: 62 72 112;
+  --ink-faint: 92 101 136;
   --scroll: 203 213 225;
+  --st-ok: 4 108 78;
+  --st-warning: 146 64 14;
+  --st-critical: 185 28 28;
+  --st-unknown: 71 85 105;
+  --st-info: 29 78 216;
+  --st-maintenance: 109 40 217;
   color-scheme: light;
+}
+
+/* Palette sombre imposée (vue NOC : écran mural, toujours sombre quel que soit le thème). */
+.theme-dark-vars {
+  --brand-rgb: 96 165 250;
+  --brand-soft-rgb: 37 99 235;
+  --cyan: 56 189 248;
+  --violet: 139 92 246;
+  --bg: 8 12 30;
+  --bg-soft: 11 16 38;
+  --card: 15 21 48;
+  --border: 36 46 88;
+  --border-soft: 24 32 66;
+  --ink: 236 240 252;
+  --ink-soft: 172 182 216;
+  --ink-faint: 132 143 182;
+  --scroll: 44 55 102;
+  --st-ok: 52 211 153;
+  --st-warning: 251 191 36;
+  --st-critical: 248 113 113;
+  --st-unknown: 148 163 184;
+  --st-info: 96 165 250;
+  --st-maintenance: 167 139 250;
+  color-scheme: dark;
 }
 
 /* Mode « système » (aucun data-theme) sur un OS clair -> palette claire. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]):not([data-theme="light"]) {
-    --bg: 247 249 252;
+    --brand-rgb: 29 78 216;
+    --brand-soft-rgb: 30 64 175;
+    --bg: 245 247 252;
     --bg-soft: 255 255 255;
     --card: 255 255 255;
-    --border: 226 232 240;
-    --border-soft: 241 245 249;
-    --ink: 15 23 42;
-    --ink-soft: 71 85 105;
-    --ink-faint: 148 163 184;
+    --border: 218 224 238;
+    --border-soft: 236 240 248;
+    --ink: 11 18 48;
+    --ink-soft: 62 72 112;
+    --ink-faint: 92 101 136;
     --scroll: 203 213 225;
+    --st-ok: 4 108 78;
+    --st-warning: 146 64 14;
+    --st-critical: 185 28 28;
+    --st-unknown: 71 85 105;
+    --st-info: 29 78 216;
+    --st-maintenance: 109 40 217;
     color-scheme: light;
   }
 }
@@ -62,9 +128,20 @@ body,
 }
 
 body {
-  @apply bg-bg text-ink antialiased;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  @apply bg-bg font-sans text-ink antialiased;
+  font-size: 14px;
+  line-height: 1.5;
 }
+
+/* Focus visible, cohérent sur toute l'application (clavier uniquement). */
+:focus-visible {
+  outline: 2px solid rgb(var(--cyan));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+:root[data-theme="light"] :focus-visible { outline-color: rgb(var(--brand-soft-rgb)); }
+
+::selection { background: rgb(var(--brand-rgb) / 0.35); }
 
 /* Scrollbars (suivent le thème) */
 * {
@@ -85,23 +162,69 @@ body {
     @apply rounded-xl border border-border bg-card shadow-card;
   }
   .input {
-    @apply rounded-lg border border-border bg-bg-soft px-3 py-2 text-sm text-ink
-      placeholder:text-ink-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand/40;
+    @apply min-h-[36px] rounded-lg border border-border bg-bg-soft px-3 py-2 text-sm text-ink
+      placeholder:text-ink-faint focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .input[aria-invalid="true"] {
+    @apply border-status-critical focus:ring-status-critical/30;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-ink-soft;
+  }
+  .field-hint {
+    @apply mt-1 text-xs text-ink-faint;
+  }
+  .field-error {
+    @apply mt-1 text-xs text-status-critical;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition;
+    @apply inline-flex min-h-[36px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition
+      disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-soft disabled:opacity-50;
+    @apply btn bg-brand-soft text-white hover:bg-brand-soft/85;
   }
   .btn-ghost {
-    @apply btn border border-border bg-bg-soft text-ink-soft hover:text-ink hover:border-ink-faint;
+    @apply btn border border-border bg-bg-soft text-ink-soft hover:border-ink-faint hover:text-ink;
+  }
+  .btn-danger {
+    @apply btn bg-status-critical/90 text-white hover:bg-status-critical;
+  }
+  :root[data-theme="light"] .btn-danger { @apply bg-[rgb(185_28_28)] hover:bg-[rgb(153_27_27)]; }
+  .btn-sm {
+    @apply min-h-[30px] px-2.5 py-1 text-xs;
+  }
+  .icon-btn {
+    @apply inline-grid h-9 w-9 place-items-center rounded-lg border border-border bg-bg-soft text-ink-soft transition
+      hover:border-ink-faint hover:text-ink disabled:opacity-50;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-border bg-bg-soft px-2.5 py-1 text-xs font-medium text-ink-soft;
+  }
+  .kbd {
+    @apply rounded border border-border bg-bg-soft px-1.5 py-0.5 font-mono text-[10px] text-ink-faint;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-ink-faint;
+  }
+  .table-std {
+    @apply w-full border-collapse text-sm;
+  }
+  .table-std th {
+    @apply border-b border-border px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-faint;
+  }
+  .table-std td {
+    @apply border-b border-border-soft px-3 py-2.5 align-middle text-ink;
+  }
+  .table-std tbody tr:hover {
+    @apply bg-bg-soft/60;
   }
 }
 
 /* Skeleton shimmer */
 .skeleton {
-  @apply relative overflow-hidden bg-border/40;
+  @apply relative overflow-hidden rounded-lg bg-border/40;
 }
 .skeleton::after {
   content: "";
@@ -112,4 +235,32 @@ body {
 /* React Flow dark surface override */
 .react-flow__attribution {
   display: none;
+}
+
+/* Fond de carte : tuiles claires assombries en thème sombre (aucun fournisseur « dark » sans clé). */
+.orbisys-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.85) saturate(0.5);
+}
+:root[data-theme="light"] .orbisys-tiles { filter: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .orbisys-tiles { filter: none; }
+}
+
+/* Entrée de page : courte, sans décalage de mise en page. */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter {
+  animation: page-enter 180ms ease-out both;
+}
+
+/* Mouvement réduit : aucune animation ni transition décorative. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

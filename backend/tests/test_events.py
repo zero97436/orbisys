@@ -35,3 +35,15 @@ def test_acknowledge_records_event(client, db):
     client.post(f"/api/dashboard/incidents/{alert.id}/ack")
     events = client.get("/api/events", params={"type": "alert_acknowledged"}).json()
     assert any(e["check_id"] == check_id for e in events)
+
+
+
+def test_events_filter_by_check(client, db):
+    from app.services.event_service import EventService
+
+    svc = EventService(db)
+    svc.record("probe_evt", "pour le check 9101", check_id=9101, commit=False)
+    svc.record("probe_evt", "pour le check 9102", check_id=9102, commit=False)
+    db.commit()
+    rows = client.get("/api/events", params={"check_id": 9101}).json()
+    assert rows and all(r["check_id"] == 9101 for r in rows)

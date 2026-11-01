@@ -1,11 +1,12 @@
 """Agrégations pour le dashboard."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.alert import Alert
 from app.models.check import Check
+from app.models.check_result import CheckResult
 from app.models.enums import CheckStatus
 from app.models.host import Host
 
@@ -43,6 +44,51 @@ class DashboardService:
             "hosts_total": hosts_total,
             "checks_total": checks_total,
             "status_counts": counts,
+        }
+
+    def availability(self, hours: int = 24, buckets: int = 24, check_id: int | None = None) -> dict:
+        """Disponibilité réelle sur une fenêtre : % de résultats OK, global et par tranche.
+
+        Même formule que l'affichage historique (résultats OK / résultats), mais calculée
+        sur TOUS les résultats de la fenêtre et de tous les checks visibles, en base
+        (comptages agrégés, sans charger les lignes). Tranche sans résultat : total = 0
+        (le client affiche « pas de données », jamais 100 % par défaut).
+        """
+        allowed = self._allowed()
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(hours=hours)
+        step = (now - start) / buckets
+        out = []
+        ok_all = total_all = 0
+        for i in range(buckets):
+            b_start = start + step * i
+            b_end = now if i == buckets - 1 else start + step * (i + 1)
+            last = i == buckets - 1
+            end_cond = CheckResult.checked_at <= b_end if last else CheckResult.checked_at < b_end
+            q = (
+                select(CheckResult.status, func.count(CheckResult.id))
+                .where(CheckResult.checked_at >= b_start, end_cond)
+                .group_by(CheckResult.status)
+            )
+            if check_id is not None:
+                q = q.where(CheckResult.check_id == check_id)
+            if allowed is not None:
+                q = q.join(Check, Check.id == CheckResult.check_id).where(Check.host_id.in_(allowed))
+            ok = total = 0
+            for status, count in self.db.execute(q).all():
+                total += count
+                if status == CheckStatus.OK.value:
+                    ok += count
+            ok_all += ok
+            total_all += total
+            out.append({"start": b_start, "end": b_end, "ok": ok, "total": total})
+        return {
+            "window_hours": hours,
+            "check_id": check_id,
+            "ok": ok_all,
+            "total": total_all,
+            "availability": round(ok_all * 100 / total_all, 2) if total_all else None,
+            "buckets": out,
         }
 
     def incidents(self) -> list[dict]:

@@ -6,9 +6,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { CheckStatus } from "../types";
+import { getLang, translate } from "./i18n";
 
 export interface StatusMeta {
-  label: string;
+  /** Libellé dans la langue courante de l'application. */
+  readonly label: string;
   /** Couleur hex (pour les charts / SVG). */
   color: string;
   /** Classes Tailwind texte. */
@@ -22,7 +24,7 @@ export interface StatusMeta {
 
 export const STATUS: Record<CheckStatus, StatusMeta> = {
   OK: {
-    label: "Opérationnel",
+    get label() { return translate(getLang(), "status.OK"); },
     color: "#10B981",
     text: "text-status-ok",
     soft: "bg-status-ok/10 text-status-ok ring-1 ring-inset ring-status-ok/30",
@@ -30,7 +32,7 @@ export const STATUS: Record<CheckStatus, StatusMeta> = {
     icon: CheckCircle2,
   },
   WARNING: {
-    label: "Avertissement",
+    get label() { return translate(getLang(), "status.WARNING"); },
     color: "#F59E0B",
     text: "text-status-warning",
     soft: "bg-status-warning/10 text-status-warning ring-1 ring-inset ring-status-warning/30",
@@ -38,7 +40,7 @@ export const STATUS: Record<CheckStatus, StatusMeta> = {
     icon: AlertTriangle,
   },
   CRITICAL: {
-    label: "Critique",
+    get label() { return translate(getLang(), "status.CRITICAL"); },
     color: "#EF4444",
     text: "text-status-critical",
     soft: "bg-status-critical/10 text-status-critical ring-1 ring-inset ring-status-critical/30",
@@ -46,7 +48,7 @@ export const STATUS: Record<CheckStatus, StatusMeta> = {
     icon: XCircle,
   },
   UNKNOWN: {
-    label: "Inconnu",
+    get label() { return translate(getLang(), "status.UNKNOWN"); },
     color: "#64748B",
     text: "text-status-unknown",
     soft: "bg-status-unknown/10 text-status-unknown ring-1 ring-inset ring-status-unknown/30",
@@ -67,3 +69,16 @@ export function worstStatus(statuses: (CheckStatus | null | undefined)[]): Check
   }
   return "OK";
 }
+
+/** Seuils d'affichage de la disponibilité (≥ 99 % OK, ≥ 95 % avertissement, sinon critique).
+ *  Purement visuel : ne change aucun calcul SLA. null = pas de mesure -> UNKNOWN. */
+export function availabilityStatus(pct: number | null | undefined): CheckStatus {
+  if (pct == null) return "UNKNOWN";
+  if (pct >= 99) return "OK";
+  if (pct >= 95) return "WARNING";
+  return "CRITICAL";
+}
+
+export const ACCENT_OF: Record<CheckStatus, "ok" | "warning" | "critical" | "unknown"> = {
+  OK: "ok", WARNING: "warning", CRITICAL: "critical", UNKNOWN: "unknown",
+};

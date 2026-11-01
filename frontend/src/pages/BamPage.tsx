@@ -14,9 +14,15 @@ import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { cn } from "../lib/cn";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
+
 
 export default function BamPage() {
   const { t } = useI18n();
+  const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const editable = canEdit(user);
   const [services, setServices] = useState<BamService[]>([]);
@@ -43,8 +49,16 @@ export default function BamPage() {
     load();
   };
   const addComp = async (bsId: number, checkId: number) => { await addBamComponent(bsId, { check_id: checkId }); load(); };
-  const delComp = async (id: number) => { await removeBamComponent(id); load(); };
-  const delSvc = async (id: number) => { if (confirm(t("bam.confirmDelete"))) { await deleteBamService(id); load(); } };
+  const delComp = async (id: number, label: string) => {
+    if (!(await confirm({ title: t("bam.removeCompTitle"), details: label, confirmLabel: t("common.delete"), tone: "danger" }))) return;
+    try { await removeBamComponent(id); } catch (e) { toast.error(apiErrorMessage(e, t("common.actionFailed"))); }
+    load();
+  };
+  const delSvc = async (id: number, label: string) => {
+    if (!(await confirm({ title: t("bam.confirmDelete"), details: label, confirmLabel: t("common.delete"), tone: "danger" }))) return;
+    try { await deleteBamService(id); } catch (e) { toast.error(apiErrorMessage(e, t("common.actionFailed"))); }
+    load();
+  };
 
   if (loading) return <Loading />;
   const checkName = new Map(checks.map((c) => [c.id, c.name]));
@@ -72,24 +86,21 @@ export default function BamPage() {
             </select>
             <input placeholder={t("common.description")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" />
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input" title={t("bam.layer")}>
-              <option>Applications métier</option>
-              <option>Back-Office</option>
-              <option>Infrastructure</option>
-              <option>Général</option>
+              {["Applications métier", "Back-Office", "Infrastructure", "Général"].map((c) => <option key={c} value={c}>{t(`bam.cat.${c}`)}</option>)}
             </select>
             <select value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} className="input" title={t("bam.tileIcon")}>
               <option value="">{t("bam.iconAuto")}</option>
-              <option value="cart">🛒 Boutique</option>
-              <option value="truck">🚚 Logistique</option>
-              <option value="warehouse">🏬 Entrepôt</option>
-              <option value="mail">✉️ E-mail</option>
-              <option value="finance">💵 Finance</option>
-              <option value="hr">👥 RH</option>
-              <option value="globe">🌐 Intranet/Web</option>
-              <option value="server">🖥️ Serveur</option>
-              <option value="database">🗄️ Base de données</option>
-              <option value="cloud">☁️ Cloud</option>
-              <option value="network">🔗 Réseau</option>
+              <option value="cart">🛒 {t("bam.ic.cart")}</option>
+              <option value="truck">🚚 {t("bam.ic.truck")}</option>
+              <option value="warehouse">🏬 {t("bam.ic.warehouse")}</option>
+              <option value="mail">✉️ {t("bam.ic.mail")}</option>
+              <option value="finance">💵 {t("bam.ic.finance")}</option>
+              <option value="hr">👥 {t("bam.ic.hr")}</option>
+              <option value="globe">🌐 {t("bam.ic.globe")}</option>
+              <option value="server">🖥️ {t("bam.ic.server")}</option>
+              <option value="database">🗄️ {t("bam.ic.database")}</option>
+              <option value="cloud">☁️ {t("bam.ic.cloud")}</option>
+              <option value="network">🔗 {t("bam.ic.network")}</option>
               <option value="shield">🛡️ Sécurité</option>
             </select>
             <button className="btn-primary sm:col-span-3">{t("common.create")}</button>
@@ -115,7 +126,7 @@ export default function BamPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={s.status} />
-                    {editable && <button onClick={() => delSvc(s.id)} className="text-status-critical/80 hover:text-status-critical"><Trash2 className="h-4 w-4" /></button>}
+                    {editable && <button type="button" onClick={() => delSvc(s.id, s.name)} className="icon-btn h-8 w-8 hover:text-status-critical" aria-label={`${t("common.delete")} ${s.name}`}><Trash2 className="h-4 w-4" aria-hidden /></button>}
                   </div>
                 </div>
                 <p className="mb-2 text-xs text-ink-faint">
@@ -126,7 +137,7 @@ export default function BamPage() {
                     <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border bg-bg-soft/50 px-2.5 py-1.5 text-sm">
                       <StatusDot status={c.status} />
                       <span className="flex-1 truncate text-ink-soft">{c.label}</span>
-                      {editable && <button onClick={() => delComp(c.id)} className="text-ink-faint hover:text-status-critical"><X className="h-3.5 w-3.5" /></button>}
+                      {editable && <button type="button" onClick={() => delComp(c.id, (c.check_id != null && checkName.get(c.check_id)) || `#${c.id}`)} className="rounded p-0.5 text-ink-faint hover:text-status-critical" aria-label={`${t("common.delete")} : ${(c.check_id != null && checkName.get(c.check_id)) || `#${c.id}`}`}><X className="h-3.5 w-3.5" aria-hidden /></button>}
                     </div>
                   ))}
                   {s.components.length === 0 && <p className="text-xs text-ink-faint">{t("bam.noComponent")}</p>}

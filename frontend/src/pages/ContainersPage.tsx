@@ -10,11 +10,11 @@ import { cn } from "../lib/cn";
 import { useI18n } from "../lib/i18n";
 
 function stateMeta(c: DockerContainer): { color: string; label: string } {
-  if (c.state === "running" && c.health === "unhealthy") return { color: "#EF4444", label: "Unhealthy" };
-  if (c.state === "running") return { color: "#10B981", label: c.health === "healthy" ? "Healthy" : "Running" };
-  if (c.state === "restarting") return { color: "#F59E0B", label: "Restarting" };
-  if (c.state === "paused") return { color: "#F59E0B", label: "Paused" };
-  return { color: "#EF4444", label: c.state === "exited" ? "Stopped" : c.state };
+  if (c.state === "running" && c.health === "unhealthy") return { color: "rgb(var(--st-critical))", label: "ct.st.unhealthy" };
+  if (c.state === "running") return { color: "rgb(var(--st-ok))", label: c.health === "healthy" ? "ct.st.healthy" : "ct.st.running" };
+  if (c.state === "restarting") return { color: "rgb(var(--st-warning))", label: "ct.st.restarting" };
+  if (c.state === "paused") return { color: "rgb(var(--st-warning))", label: "ct.st.paused" };
+  return { color: "rgb(var(--st-critical))", label: c.state === "exited" ? "ct.st.stopped" : c.state };
 }
 
 export default function ContainersPage() {
@@ -99,7 +99,7 @@ export default function ContainersPage() {
                         <p className="truncate font-semibold text-ink">{c.name}</p>
                         <p className="truncate text-xs text-ink-faint">{c.image}</p>
                       </div>
-                      <span className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `${m.color}1f`, color: m.color }}>
+                      <span className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `color-mix(in srgb, ${m.color} 9%, transparent)`, color: m.color }}>
                         <span className={cn("h-1.5 w-1.5 rounded-full", c.state !== "running" && "animate-pulse")} style={{ background: m.color }} />
                         {m.label}
                       </span>
@@ -125,7 +125,7 @@ export default function ContainersPage() {
 }
 
 function Res({ icon: Icon, label, value, pct }: { icon: typeof Cpu; label: string; value: string; pct: number | null }) {
-  const color = pct == null ? "#64748B" : pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#3B82F6";
+  const color = pct == null ? "rgb(var(--st-unknown))" : pct >= 90 ? "rgb(var(--st-critical))" : pct >= 70 ? "rgb(var(--st-warning))" : "rgb(var(--st-info))";
   return (
     <div className="rounded-lg bg-bg-soft/60 p-2">
       <div className="flex items-center justify-between">

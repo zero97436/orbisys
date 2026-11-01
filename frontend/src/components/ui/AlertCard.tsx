@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Check, Clock, Sparkles, Loader2, Wrench, CheckCircle2, XCircle, Ticket } from "lucide-react";
+import { Bell, Check, Clock, Sparkles, Loader2, Wrench, CheckCircle2, XCircle, Ticket, PanelRightOpen } from "lucide-react";
 import type { Incident } from "../../types";
 import type { RemediationAction } from "../../api/endpoints";
 import { statusMeta } from "../../lib/status";
-import { timeAgo } from "../../lib/format";
+import { formatDate, uptimeSince } from "../../lib/format";
 import { cn } from "../../lib/cn";
 import { fadeUp } from "./Card";
 import { StatusBadge } from "./StatusBadge";
@@ -34,6 +34,7 @@ export function AlertCard({
   remediation,
   onTicket,
   ticketBusy,
+  onOpen,
 }: {
   incident: Incident;
   acknowledged?: boolean;
@@ -44,6 +45,8 @@ export function AlertCard({
   remediation?: RemediationState;
   onTicket?: (id: number) => void;
   ticketBusy?: boolean;
+  /** Ouvre la fiche détaillée de l'incident. */
+  onOpen?: (id: number) => void;
 }) {
   const { t } = useI18n();
   const meta = statusMeta(incident.status);
@@ -58,7 +61,7 @@ export function AlertCard({
     >
       <div className="flex items-start gap-3">
       <span className={cn("mt-0.5 rounded-lg p-2", meta.soft)}>
-        <Bell className="h-4 w-4" />
+        <Bell className="h-4 w-4" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -74,7 +77,8 @@ export function AlertCard({
         {incident.message && <p className="mt-1 text-sm text-ink-soft">{incident.message}</p>}
         <p className="mt-1 flex items-center gap-2 text-xs text-ink-faint">
           <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" /> {timeAgo(incident.since)}
+            <Clock className="h-3 w-3" aria-hidden />
+            <time dateTime={incident.since} title={formatDate(incident.since)}>{t("incd.for")} {uptimeSince(incident.since)}</time>
           </span>
           {acknowledged && incident.acknowledged_by && (
             <span className="rounded bg-status-info/10 px-1.5 py-0.5 text-status-info">
@@ -84,8 +88,15 @@ export function AlertCard({
         </p>
       </div>
       <div className="flex shrink-0 flex-col gap-2">
+        {onOpen && (
+          <button type="button" onClick={() => onOpen(incident.alert_id)} className="btn-ghost px-2.5 py-1.5 text-xs"
+            aria-label={`${t("incd.details")} : ${incident.host_name} / ${incident.check_name}`}>
+            <PanelRightOpen className="h-3.5 w-3.5" aria-hidden /> {t("incd.details")}
+          </button>
+        )}
         {onAck && (
           <button
+            type="button"
             onClick={() => onAck(incident.alert_id)}
             className="btn-ghost px-2.5 py-1.5 text-xs"
             title={acknowledged ? t("alert.unack") : t("alert.ack")}
@@ -96,6 +107,7 @@ export function AlertCard({
         )}
         {onAnalyze && (
           <button
+            type="button"
             onClick={() => onAnalyze(incident.alert_id)}
             disabled={analysis?.loading}
             className="btn-ghost px-2.5 py-1.5 text-xs"
@@ -107,6 +119,7 @@ export function AlertCard({
         )}
         {onTicket && (
           <button
+            type="button"
             onClick={() => onTicket(incident.alert_id)}
             disabled={ticketBusy}
             className="btn-ghost px-2.5 py-1.5 text-xs"
@@ -153,10 +166,11 @@ export function AlertCard({
                           onClick={() => onRemediate(incident.alert_id, a.id)}
                           disabled={!!remediation?.loading}
                           title={a.description}
-                          className={isSuggested ? "btn-primary px-2.5 py-1.5 text-xs" : "btn-ghost px-2.5 py-1.5 text-xs"}
+                          className={cn("btn-ghost px-2.5 py-1.5 text-xs", isSuggested && "border-accent-violet/50")}
                         >
-                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isSuggested ? <Sparkles className="h-3.5 w-3.5" /> : null}
-                          {a.label}{isSuggested ? ` · ${t("alert.suggested")}` : ""}
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : isSuggested ? <Sparkles className="h-3.5 w-3.5 text-accent-violet" aria-hidden /> : null}
+                          {a.label}
+                          {isSuggested && <span className="rounded bg-accent-violet/15 px-1 text-[10px] font-semibold text-accent-violet">{t("alert.suggestedAi")}</span>}
                         </button>
                       );
                     })}

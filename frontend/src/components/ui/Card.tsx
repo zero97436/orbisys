@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/cn";
 
@@ -37,7 +37,7 @@ export function SectionTitle({
   icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
         {Icon && <Icon className="h-4 w-4" />}
         {title}
@@ -58,8 +58,10 @@ export const fadeUp = {
 };
 
 export function MotionGrid({ children, className }: { children: ReactNode; className?: string }) {
+  // « Réduire les animations » : pas de fondu d'entrée (initial={false} vaut pour tous les enfants).
+  const reduce = useReducedMotion();
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className={className}>
+    <motion.div variants={stagger} initial={reduce ? false : "hidden"} animate="show" className={className}>
       {children}
     </motion.div>
   );

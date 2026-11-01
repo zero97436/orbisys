@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getLang, translate } from "../lib/i18n";
 
 /**
  * Rafraîchissement intelligent : poll périodique qui se met en pause
@@ -20,7 +21,8 @@ export function usePolling<T>(
       setData(result);
       setError(null);
     } catch {
-      setError("Erreur de chargement");
+      // Les données précédentes sont conservées : l'écran reste lisible, marqué « non à jour ».
+      setError(translate(getLang(), "common.loadError"));
     } finally {
       setLoading(false);
     }

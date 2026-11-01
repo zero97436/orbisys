@@ -4,9 +4,14 @@ import { getBrandingSettings, saveBranding, resetBranding } from "../api/endpoin
 import { Card, SectionTitle } from "./ui/Card";
 import { useBranding } from "../lib/branding";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "./ui/Confirm";
+import { useToast } from "./ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
 
 export function BrandingPanel() {
   const { t } = useI18n();
+  const confirm = useConfirm();
+  const toast = useToast();
   const { reload } = useBranding();
   const [form, setForm] = useState({ display_name: "", tagline: "", logo_url: "", accent_color: "" });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -42,7 +47,13 @@ export function BrandingPanel() {
   };
 
   const reset = async () => {
-    await resetBranding().catch(() => {});
+    if (!(await confirm({ title: t("brand.resetTitle"), message: t("brand.resetBody"), confirmLabel: t("brand.resetBtn"), tone: "danger" }))) return;
+    try {
+      await resetBranding();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
+      return;
+    }
     setForm({ display_name: "", tagline: "", logo_url: "", accent_color: "" });
     reload();
     setMsg({ ok: true, text: t("brand.restored") });

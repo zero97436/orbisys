@@ -41,6 +41,25 @@ function ClickCatcher({ onClick }: { onClick: (lat: number, lon: number) => void
   return null;
 }
 
+/** Fond de carte. Par défaut : tuiles OpenStreetMap (sans clé ; usage modéré, cf.
+ *  https://operations.osmfoundation.org/policies/tiles/). Pour un fournisseur avec clé
+ *  ou un serveur de tuiles interne : VITE_MAP_TILE_URL et VITE_MAP_ATTRIBUTION au build.
+ *  Le thème sombre est obtenu par filtre CSS (.orbisys-tiles, index.css). */
+const DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+/** Valeur de build (fixée par l'exploitant) : on n'accepte qu'une URL http(s) bien formée. */
+function safeTileUrl(raw?: string): string {
+  if (!raw) return DEFAULT_TILE_URL;
+  try {
+    const u = new URL(raw.replace(/\{[a-z]+\}/g, "0"));
+    return u.protocol === "https:" || u.protocol === "http:" ? raw : DEFAULT_TILE_URL;
+  } catch {
+    return DEFAULT_TILE_URL;
+  }
+}
+const TILE_URL = safeTileUrl(import.meta.env.VITE_MAP_TILE_URL);
+const TILE_ATTRIBUTION =
+  import.meta.env.VITE_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
 export default function GeoMapPage() {
   const { t } = useI18n();
   const { user } = useAuth();
@@ -76,7 +95,7 @@ export default function GeoMapPage() {
     if (!placing) return;
     const host = hosts.find((h) => h.id === placing);
     await updateHost(placing, { latitude: Number(lat.toFixed(6)), longitude: Number(lon.toFixed(6)) });
-    setFlash(`📍 ${host?.name} placé (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+    setFlash(t("geo.placed").replace("{name}", host?.name ?? "").replace("{lat}", lat.toFixed(4)).replace("{lon}", lon.toFixed(4)));
     setPlacing(0);
     load();
     setTimeout(() => setFlash(null), 4000);
@@ -85,7 +104,7 @@ export default function GeoMapPage() {
   const locateMe = () => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
-      () => setFlash("⚠️ Géolocalisation refusée par le navigateur"),
+      () => setFlash(t("geo.denied")),
       { enableHighAccuracy: true, timeout: 8000 },
     );
   };
@@ -134,10 +153,7 @@ export default function GeoMapPage() {
       <div className={cn("card overflow-hidden p-0", placing !== 0 && "ring-2 ring-brand")}
            style={{ height: "calc(100vh - 260px)", minHeight: 420, cursor: placing ? "crosshair" : undefined }}>
         <MapContainer center={DEFAULT_CENTER} zoom={5} className="h-full w-full" scrollWheelZoom>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          />
+          <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} className="orbisys-tiles" maxZoom={19} />
           <FitBounds points={myPos ? [myPos] : points} />
           {placing !== 0 && <ClickCatcher onClick={place} />}
 

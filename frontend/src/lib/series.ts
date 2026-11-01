@@ -1,9 +1,11 @@
 import type { CheckResult, CheckStatus } from "../types";
+import { localeOf } from "./format";
 
 export interface BucketPoint {
   t: number; // timestamp (ms)
   label: string;
-  availability: number; // %
+  /** % de résultats OK ; null = aucune mesure dans la tranche (jamais 100 % par défaut). */
+  availability: number | null;
   ok: number;
   fail: number;
 }
@@ -39,18 +41,35 @@ export function availabilityBuckets(
     return {
       t,
       label: bucketLabel(t, windowMs),
-      availability: total === 0 ? 100 : Math.round((s.ok / total) * 1000) / 10,
+      availability: total === 0 ? null : Math.round((s.ok / total) * 1000) / 10,
       ok: s.ok,
       fail: s.fail,
     };
   });
 }
 
-function bucketLabel(t: number, windowMs: number): string {
+export function bucketLabel(t: number, windowMs: number): string {
   const d = new Date(t);
   if (windowMs <= 24 * 3600 * 1000)
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString([], { day: "2-digit", month: "2-digit" });
+    return d.toLocaleTimeString(localeOf(), { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(localeOf(), { day: "2-digit", month: "2-digit" });
+}
+
+/** Tranches renvoyées par GET /dashboard/availability -> points de graphique. */
+export function bucketsFromReport(
+  buckets: { start: string; end: string; ok: number; total: number }[],
+  windowMs: number,
+): BucketPoint[] {
+  return buckets.map((b) => {
+    const t = (new Date(b.start).getTime() + new Date(b.end).getTime()) / 2;
+    return {
+      t,
+      label: bucketLabel(t, windowMs),
+      availability: b.total ? Math.round((b.ok / b.total) * 1000) / 10 : null,
+      ok: b.ok,
+      fail: b.total - b.ok,
+    };
+  });
 }
 
 /** Temps de réponse réel (duration_ms) en série chronologique. */
@@ -60,7 +79,7 @@ export function responseTimeSeries(results: CheckResult[]) {
     .sort((a, b) => +new Date(a.checked_at) - +new Date(b.checked_at))
     .map((r) => ({
       t: new Date(r.checked_at).getTime(),
-      label: new Date(r.checked_at).toLocaleTimeString([], {
+      label: new Date(r.checked_at).toLocaleTimeString(localeOf(), {
         hour: "2-digit",
         minute: "2-digit",
       }),
@@ -69,9 +88,9 @@ export function responseTimeSeries(results: CheckResult[]) {
     }));
 }
 
-/** Disponibilité globale (%) sur un lot de résultats. */
-export function availabilityRatio(results: CheckResult[]): number {
-  if (results.length === 0) return 100;
+/** Disponibilité globale (%) sur un lot de résultats ; null sans résultat. */
+export function availabilityRatio(results: CheckResult[]): number | null {
+  if (results.length === 0) return null;
   const ok = results.filter((r) => r.status === "OK").length;
   return Math.round((ok / results.length) * 1000) / 10;
 }
@@ -94,7 +113,7 @@ export function demoMetricSeries(seed: number, points = 48, base = 40, amp = 25)
     const value = Math.max(2, Math.min(99, base + wave + (rand() - 0.5) * amp));
     return {
       t,
-      label: new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      label: new Date(t).toLocaleTimeString(localeOf(), { hour: "2-digit", minute: "2-digit" }),
       value: Math.round(value * 10) / 10,
     };
   });

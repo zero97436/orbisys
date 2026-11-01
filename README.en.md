@@ -3,7 +3,7 @@
 [🇫🇷 Français](README.md) · **🇬🇧 English**
 
 <!-- Replace OWNER/REPO with the real GitHub path once the repo is pushed. -->
-[![CI](https://github.com/zero97436/MVP/actions/workflows/ci.yml/badge.svg)](https://github.com/zero97436/MVP/actions/workflows/ci.yml)
+[![CI](https://github.com/zero97436/orbisys/actions/workflows/ci.yml/badge.svg)](https://github.com/zero97436/orbisys/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![React](https://img.shields.io/badge/react-18-61dafb)
 ![Docker](https://img.shields.io/badge/docker-compose-2496ed)
@@ -166,7 +166,7 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER && newgrp docker
 
 # 2. Get the project
-git clone https://github.com/zero97436/MVP.git orbisys
+git clone https://github.com/zero97436/orbisys.git orbisys
 cd orbisys
 
 # 3. Configure the environment
@@ -222,7 +222,7 @@ crontab -e
 2. Open PowerShell:
 
 ```powershell
-git clone https://github.com/zero97436/MVP.git orbisys
+git clone https://github.com/zero97436/orbisys.git orbisys
 cd orbisys
 Copy-Item .env.example .env
 notepad .env          # same variables as Linux

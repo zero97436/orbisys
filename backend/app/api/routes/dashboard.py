@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,19 @@ router = APIRouter(
 @router.get("/summary", response_model=DashboardSummary)
 def summary(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return DashboardService(db, user).summary()
+
+
+@router.get("/availability")
+def availability(
+    hours: int = Query(24, ge=1, le=24 * 31),
+    buckets: int = Query(24, ge=1, le=96),
+    check_id: int | None = Query(None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Disponibilité agrégée (checks visibles par l'utilisateur) sur `hours` heures,
+    éventuellement limitée à un check."""
+    return DashboardService(db, user).availability(hours=hours, buckets=buckets, check_id=check_id)
 
 
 @router.get("/incidents", response_model=list[IncidentOut])
@@ -120,10 +133,14 @@ def unacknowledge_incident(
 
 
 @router.post("/ai-summary")
-def ai_summary(db: Session = Depends(get_db), lang: str = Depends(get_lang)):
-    """Résumé santé global généré par l'IA (Ollama)."""
+def ai_summary(
+    db: Session = Depends(get_db),
+    lang: str = Depends(get_lang),
+    user: User = Depends(get_current_user),
+):
+    """Résumé santé généré par l'IA (Ollama), limité au périmètre de l'utilisateur."""
     try:
-        return AIService(db).health_summary(lang)
+        return AIService(db).health_summary(lang, user)
     except OllamaError as exc:
         raise HTTPException(503, str(exc))
 
@@ -136,6 +153,7 @@ def remediate_incident(
     user: User = Depends(require_operator),
 ):
     """Exécute une action de remédiation (liste blanche) validée par l'utilisateur."""
+    _assert_alert_visible(db, user, alert_id)
     try:
         result = RemediationService(db).execute(alert_id, payload.action, user.email)
     except ValueError as exc:
@@ -146,8 +164,14 @@ def remediate_incident(
 
 
 @router.post("/incidents/{alert_id}/analyze")
-def analyze_incident(alert_id: int, db: Session = Depends(get_db), lang: str = Depends(get_lang)):
+def analyze_incident(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    lang: str = Depends(get_lang),
+    user: User = Depends(get_current_user),
+):
     """Analyse IA (Ollama) de l'incident : cause probable, impact, remédiation."""
+    _assert_alert_visible(db, user, alert_id)
     try:
         result = AIService(db).analyze_incident(alert_id, lang)
     except OllamaError as exc:

@@ -1,156 +1,204 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2, Maximize, Minimize, RotateCw, WifiOff, X } from "lucide-react";
 import { BrandLogo } from "../components/ui/BrandLogo";
 import { useBranding } from "../lib/branding";
 import { getIncidents, getSummary, listChecks, listHosts } from "../api/endpoints";
-import type { Check, CheckStatus, DashboardSummary, Host, Incident } from "../types";
-import { buildHostViews } from "../lib/fleet";
+import { buildHostViews, overallStatus, prioritizeIncidents, SEVERITY_RANK } from "../lib/fleet";
 import { statusMeta } from "../lib/status";
+import { usePolling } from "../hooks/usePolling";
 import { useNow } from "../hooks/useNow";
-import { timeAgo } from "../lib/format";
+import { localeOf, uptimeSince } from "../lib/format";
 import { cn } from "../lib/cn";
 import { useI18n } from "../lib/i18n";
 
-const SEV: Record<CheckStatus, number> = { CRITICAL: 0, WARNING: 1, UNKNOWN: 2, OK: 3 };
+const MAX_INCIDENTS = 6;
+const MAX_HOSTS = 12;
 
+/** Vue mur d'écrans : lisible de loin, sans interaction. En cas de perte de connexion,
+ *  les dernières données restent affichées mais un bandeau l'indique clairement. */
 export default function TvPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { branding } = useBranding();
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const [checks, setChecks] = useState<Check[]>([]);
   const now = useNow(1000);
+  const [lastOk, setLastOk] = useState<number | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const { data, error, loading, refresh } = usePolling(
+    () => Promise.all([getSummary(), getIncidents(), listHosts(), listChecks()])
+      .then(([s, i, h, c]) => ({ summary: s.data, incidents: i.data, hosts: h.data, checks: c.data })),
+    15000,
+  );
+  useEffect(() => { if (data && !error) setLastOk(Date.now()); }, [data, error]);
 
   useEffect(() => {
-    const load = () =>
-      Promise.all([getSummary(), getIncidents(), listHosts(), listChecks()])
-        .then(([s, i, h, c]) => { setSummary(s.data); setIncidents(i.data); setHosts(h.data); setChecks(c.data); })
-        .catch(() => {});
-    load();
-    const t = setInterval(load, 15000);
-    return () => clearInterval(t);
+    const onChange = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+  };
 
+  // Hôtes : les plus graves d'abord (un hôte OK n'apparaît que s'il reste de la place).
   const views = useMemo(
-    () => buildHostViews(hosts, checks).sort((a, b) => SEV[a.status] - SEV[b.status]),
-    [hosts, checks],
+    () => buildHostViews(data?.hosts ?? [], data?.checks ?? []).sort((a, b) => SEVERITY_RANK[a.status] - SEVERITY_RANK[b.status] || a.name.localeCompare(b.name)),
+    [data],
   );
+  const locale = localeOf(lang);
+  const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-  if (!summary) {
-    return <div className="flex min-h-screen items-center justify-center bg-black text-ink-faint">Chargement…</div>;
+  if (!data) {
+    return (
+      <div className="theme-dark-vars flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-ink-soft">
+        {loading ? (
+          <p className="text-2xl">{t("common.loading")}</p>
+        ) : (
+          <>
+            <WifiOff className="h-12 w-12 text-status-warning" aria-hidden />
+            <p className="text-2xl">{t("tv.unreachable")}</p>
+            <button type="button" className="btn-ghost" onClick={refresh}><RotateCw className="h-4 w-4" aria-hidden /> {t("common.retry")}</button>
+            <Link to="/dashboard" className="text-sm text-ink-faint hover:text-ink">{t("tv.exit")}</Link>
+          </>
+        )}
+      </div>
+    );
   }
 
+  const { summary, incidents: rawIncidents } = data;
   const c = summary.status_counts;
-  const overall: CheckStatus =
-    (c.CRITICAL ?? 0) > 0 ? "CRITICAL"
-    : (c.WARNING ?? 0) > 0 ? "WARNING"
-    : (c.OK ?? 0) === 0 ? "UNKNOWN" : "OK";
+  const overall = overallStatus(c);
   const meta = statusMeta(overall);
-  const sorted = [...incidents].sort((a, b) => SEV[a.status] - SEV[b.status]);
+  const incidents = prioritizeIncidents(rawIncidents);
+  const stale = !!error;
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-black p-8 text-ink">
-      {/* En-tête : titre + horloge géante + sortie */}
-      <div className="flex items-center justify-between">
+    <div className="theme-dark-vars flex min-h-screen flex-col gap-6 bg-black p-6 text-ink lg:p-8">
+      {/* En-tête : marque, horloge, actions */}
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 text-ink-soft">
-          <BrandLogo className="h-9 w-9" />
-          <span className="text-xl font-bold tracking-tight">{branding.display_name}</span>
+          <BrandLogo className="h-10 w-10 shrink-0" />
+          <span className="text-2xl font-bold tracking-tight">{branding.display_name}</span>
         </div>
-        <span className="text-5xl font-bold tabular-nums tracking-tight">
-          {now.toLocaleTimeString("fr-FR")}
-        </span>
-        <Link to="/dashboard" className="rounded-lg border border-border p-2 text-ink-faint hover:text-ink" title="Quitter le mode TV">
-          <X className="h-5 w-5" />
-        </Link>
-      </div>
+        <time dateTime={now.toISOString()} className="order-last w-full text-center text-4xl font-bold tabular-nums tracking-tight sm:order-none sm:w-auto sm:text-5xl lg:text-6xl">
+          {now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+        </time>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={toggleFullscreen} className="rounded-lg border border-border p-2 text-ink-faint hover:text-ink"
+            aria-label={fullscreen ? t("tv.exitFullscreen") : t("tv.fullscreen")} title={fullscreen ? t("tv.exitFullscreen") : t("tv.fullscreen")}>
+            {fullscreen ? <Minimize className="h-5 w-5" aria-hidden /> : <Maximize className="h-5 w-5" aria-hidden />}
+          </button>
+          <Link to="/dashboard" className="rounded-lg border border-border p-2 text-ink-faint hover:text-ink" aria-label={t("tv.exit")} title={t("tv.exit")}>
+            <X className="h-5 w-5" aria-hidden />
+          </Link>
+        </div>
+      </header>
 
-      {/* Bannière d'état géante */}
-      <motion.div
-        key={overall}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex items-center justify-between rounded-3xl border-2 px-10 py-8"
-        style={{ borderColor: meta.color, background: `linear-gradient(135deg, ${meta.color}26, ${meta.color}08)` }}
-      >
-        <div className="flex items-center gap-6">
-          <span className={cn("h-6 w-6 rounded-full", overall !== "OK" && "animate-pulse")} style={{ background: meta.color }} />
-          <span className="text-5xl font-black" style={{ color: meta.color }}>
+      {/* Perte de connexion : impossible à manquer, données marquées comme anciennes */}
+      {stale && (
+        <div role="alert" className="flex items-center gap-4 rounded-2xl border-2 border-status-warning bg-status-warning/15 px-6 py-4 text-status-warning">
+          <WifiOff className="h-8 w-8 shrink-0" aria-hidden />
+          <p className="text-2xl font-bold">
+            {t("tv.stale").replace("{time}", lastOk ? fmtTime(lastOk) : "—")}
+          </p>
+        </div>
+      )}
+
+      {/* Bannière d'état */}
+      <section className={cn("flex flex-wrap items-center justify-between gap-6 rounded-3xl border-2 px-8 py-6 lg:px-10 lg:py-8", stale && "opacity-60")}
+        style={{ borderColor: meta.color, background: `linear-gradient(135deg, ${meta.color}26, ${meta.color}08)` }}>
+        <div className="flex items-center gap-5">
+          <meta.icon className="h-14 w-14 shrink-0" style={{ color: meta.color }} aria-hidden />
+          <p className="text-4xl font-black lg:text-5xl" style={{ color: meta.color }}>
             {overall === "OK" ? t("tv.allOk")
               : overall === "CRITICAL" ? `${c.CRITICAL} ${t("tv.critical")}`
               : overall === "WARNING" ? `${c.WARNING} ${t("tv.warning")}`
               : t("tv.waiting")}
-          </span>
+          </p>
         </div>
-        <div className="flex gap-10 text-center">
+        <dl className="flex gap-10 text-center">
           <TvStat label={t("tv.hosts")} value={summary.hosts_total} />
-          <TvStat label="Checks" value={summary.checks_total} />
-          <TvStat label="Incidents" value={incidents.length} color={incidents.length ? "#EF4444" : "#10B981"} />
-        </div>
-      </motion.div>
+          <TvStat label={t("common.checks")} value={summary.checks_total} />
+          <TvStat label={t("dash.incidents")} value={incidents.length} tone={incidents.length ? "text-status-critical" : "text-status-ok"} />
+        </dl>
+      </section>
 
-      <div className="grid flex-1 grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* Incidents */}
-        <div className="space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-widest text-ink-faint">{t("tv.activeIncidents")}</p>
-          {sorted.length === 0 ? (
+      <div className={cn("grid flex-1 grid-cols-1 gap-6 xl:grid-cols-2", stale && "opacity-60")}>
+        {/* Incidents, les plus urgents d'abord */}
+        <section className="space-y-3" aria-label={t("tv.activeIncidents")}>
+          <h2 className="text-base font-semibold uppercase tracking-widest text-ink-soft">{t("tv.activeIncidents")}</h2>
+          {incidents.length === 0 ? (
             <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-border">
-              <CheckCircle2 className="h-14 w-14 text-status-ok" />
-              <p className="text-xl font-semibold text-status-ok">{t("tv.noIncident")}</p>
+              <CheckCircle2 className="h-14 w-14 text-status-ok" aria-hidden />
+              <p className="text-2xl font-semibold text-status-ok">{t("tv.noIncident")}</p>
             </div>
           ) : (
-            sorted.slice(0, 6).map((inc) => {
-              const m = statusMeta(inc.status);
-              return (
-                <div key={inc.alert_id} className="flex items-center gap-4 rounded-2xl border-l-8 bg-bg-soft/40 px-5 py-4"
-                     style={{ borderColor: m.color }}>
-                  <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full animate-pulse")} style={{ background: m.color }} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xl font-semibold">
-                      {inc.host_name} <span className="text-ink-faint">/</span> {inc.check_name}
-                    </p>
-                    {inc.message && <p className="truncate text-sm text-ink-soft">{inc.message}</p>}
+            <>
+              {incidents.slice(0, MAX_INCIDENTS).map((inc) => {
+                const m = statusMeta(inc.status);
+                return (
+                  <div key={inc.alert_id} className="flex items-center gap-4 rounded-2xl border-l-8 bg-bg-soft/40 px-5 py-4" style={{ borderColor: m.color }}>
+                    <m.icon className="h-7 w-7 shrink-0" style={{ color: m.color }} aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-2xl font-semibold">
+                        {inc.host_name} <span className="text-ink-faint">/</span> {inc.check_name}
+                      </p>
+                      {inc.message && <p className="truncate text-base text-ink-soft">{inc.message}</p>}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-lg font-semibold" style={{ color: m.color }}>{m.label}</p>
+                      <p className="text-base text-ink-soft">{t("incd.for")} {uptimeSince(inc.since)}</p>
+                      {inc.acknowledged && <p className="text-sm text-status-info">{t("alert.acked")}</p>}
+                    </div>
                   </div>
-                  <span className="shrink-0 text-sm text-ink-faint">{timeAgo(inc.since)}</span>
-                </div>
-              );
-            })
+                );
+              })}
+              {incidents.length > MAX_INCIDENTS && (
+                <p className="text-center text-lg text-ink-soft">{t("tv.more").replace("{n}", String(incidents.length - MAX_INCIDENTS))}</p>
+              )}
+            </>
           )}
-        </div>
+        </section>
 
-        {/* Flotte */}
-        <div className="space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-widest text-ink-faint">{t("tv.fleet")} — {views.length} {t("tv.hostsWord")}</p>
+        {/* Hôtes */}
+        <section className="space-y-3" aria-label={t("tv.fleet")}>
+          <h2 className="text-base font-semibold uppercase tracking-widest text-ink-soft">{t("tv.fleet")} — {views.length} {t("tv.hostsWord")}</h2>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            {views.slice(0, 12).map((v) => {
+            {views.slice(0, MAX_HOSTS).map((v) => {
               const m = statusMeta(v.status);
               return (
-                <div key={v.id} className="rounded-2xl border px-4 py-3"
-                     style={{ borderColor: `${m.color}55`, background: `${m.color}12` }}>
+                <div key={v.id} className="rounded-2xl border px-4 py-3" style={{ borderColor: `${m.color}55`, background: `${m.color}12` }}>
                   <div className="flex items-center gap-2">
-                    <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", v.status !== "OK" && "animate-pulse")} style={{ background: m.color }} />
-                    <p className="truncate font-semibold">{v.name}</p>
+                    <m.icon className="h-5 w-5 shrink-0" style={{ color: m.color }} aria-hidden />
+                    <p className="truncate text-lg font-semibold">{v.name}</p>
                   </div>
-                  <p className="mt-1 text-xs" style={{ color: m.color }}>{t(`status.`)} · {v.checksCount} {t("tv.checksN")}</p>
+                  <p className="mt-1 text-base" style={{ color: m.color }}>
+                    {m.label} · {v.checksCount} {t("tv.checksN")}
+                  </p>
                 </div>
               );
             })}
           </div>
-        </div>
+          {views.length > MAX_HOSTS && (
+            <p className="text-center text-lg text-ink-soft">{t("tv.moreHosts").replace("{n}", String(views.length - MAX_HOSTS))}</p>
+          )}
+        </section>
       </div>
 
-      <p className="text-center text-xs text-ink-faint">{t("tv.footer")}</p>
+      <footer className="flex items-center justify-between text-sm text-ink-faint">
+        <span>{t("tv.footer")}</span>
+        <span>{t("live.updated")} {lastOk ? fmtTime(lastOk) : "—"}</span>
+      </footer>
     </div>
   );
 }
 
-function TvStat({ label, value, color }: { label: string; value: number; color?: string }) {
+function TvStat({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
     <div>
-      <p className="text-4xl font-bold tabular-nums" style={color ? { color } : undefined}>{value}</p>
-      <p className="text-xs uppercase tracking-widest text-ink-faint">{label}</p>
+      <dd className={cn("text-5xl font-bold tabular-nums", tone)}>{value}</dd>
+      <dt className="text-sm uppercase tracking-widest text-ink-soft">{label}</dt>
     </div>
   );
 }

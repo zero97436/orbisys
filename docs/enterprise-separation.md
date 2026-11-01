@@ -1,7 +1,7 @@
 # Architecture de séparation Enterprise (open-core)
 
 But : que le **code payant ne soit PAS livré** dans l'édition Community (dépôt public
-`github.com/zero97436/MVP`). Ce qui n'est pas publié ne peut être ni lu ni déverrouillé.
+`github.com/zero97436/orbisys`). Ce qui n'est pas publié ne peut être ni lu ni déverrouillé.
 
 Principe : **double protection**
 1. **Absence de code** — les modules payants vivent dans un paquet Python séparé,

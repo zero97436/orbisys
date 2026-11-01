@@ -1,262 +1,236 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Plus, Play, Trash2, Pencil } from "lucide-react";
-import { createCheck, deleteCheck, listChecks, listHosts, runCheck, updateCheck } from "../api/endpoints";
-import type { Check, CheckType, Host } from "../types";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ArrowDown, ArrowUp, ListChecks, Loader2, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { deleteCheck, listChecks, listHosts, runCheck } from "../api/endpoints";
+import type { Check, CheckStatus } from "../types";
 import { PageHeader } from "../components/ui/PageHeader";
-import { Card } from "../components/ui/Card";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { FilterChips, Pagination, SearchInput, paginate } from "../components/ui/ListControls";
 import { EmptyState, ErrorState, Loading } from "../components/States";
-import { CHECK_TYPES } from "../lib/format";
-import { CHECK_META, metaFor } from "../lib/checkMeta";
+import { CheckForm } from "../components/checks/CheckForm";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { SEVERITY_RANK } from "../lib/fleet";
+import { statusMeta } from "../lib/status";
+import { metaFor } from "../lib/checkMeta";
+import { usePolling } from "../hooks/usePolling";
+import { apiErrorMessage } from "../lib/apiError";
 import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { useI18n } from "../lib/i18n";
 
-const EMPTY = {
-  host_id: 0,
-  name: "",
-  type: "ping" as CheckType,
-  interval_seconds: 60,
-  timeout_seconds: 10,
-  warning_threshold: "",
-  critical_threshold: "",
-  config_json: "{}",
-  executor_host_id: 0, // 0 = serveur central
-};
+type SortKey = "status" | "name" | "host" | "type" | "interval";
+type StatusFilter = CheckStatus | "ALL";
+const statusOf = (c: Check): CheckStatus => c.last_status ?? "UNKNOWN";
 
 export default function ChecksPage() {
-  const { t: tr, lang } = useI18n();
-  const [checks, setChecks] = useState<Check[]>([]);
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const { t, lang } = useI18n();
+  const toast = useToast();
+  const confirm = useConfirm();
   const { user } = useAuth();
   const editable = canEdit(user);
+  const [params, setParams] = useSearchParams();
 
-  const openCreate = () => {
-    setEditingId(null);
-    setForm({ ...EMPTY, config_json: metaFor(EMPTY.type, lang).config });
-    setShowForm((s) => editingId !== null ? true : !s);
-  };
+  const { data, error, loading, refresh } = usePolling(
+    () => Promise.all([listChecks(), listHosts()]).then(([c, h]) => ({ checks: c.data, hosts: h.data })),
+    30000,
+  );
+  const checks = data?.checks ?? [];
+  const hosts = data?.hosts ?? [];
+  const hostName = useMemo(() => new Map(hosts.map((h) => [h.id, h.name])), [hosts]);
 
-  // Changer le type : pré-remplit l'exemple de config (sauf si l'utilisateur l'a déjà modifié).
-  const changeType = (type: CheckType) => {
-    setForm((f) => {
-      const wasExample = Object.values(CHECK_META).some((m) => m.config === f.config_json) || f.config_json === "{}" || f.config_json === "";
-      return { ...f, type, config_json: wasExample ? metaFor(type, lang).config : f.config_json };
-    });
-  };
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [type, setType] = useState("");
+  const hostFilter = Number(params.get("host")) || 0;
+  const setHostFilter = (id: number) => setParams((p) => { if (id) p.set("host", String(id)); else p.delete("host"); return p; }, { replace: true });
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "status", dir: 1 });
+  const [page, setPage] = useState(1);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Check | null>(null);
+  const [running, setRunning] = useState<Set<number>>(new Set());
 
-  const openEdit = (c: Check) => {
-    setEditingId(c.id);
-    setForm({
-      host_id: c.host_id,
-      name: c.name,
-      type: c.type,
-      interval_seconds: c.interval_seconds,
-      timeout_seconds: c.timeout_seconds,
-      warning_threshold: c.warning_threshold?.toString() ?? "",
-      critical_threshold: c.critical_threshold?.toString() ?? "",
-      config_json: JSON.stringify(c.config_json ?? {}),
-      executor_host_id: c.executor_host_id ?? 0,
-    });
-    setShowForm(true);
-  };
+  useEffect(() => { setPage(1); }, [q, status, type, hostFilter, sort]);
 
-  const load = () => {
-    setLoading(true);
-    Promise.all([listChecks(), listHosts()])
-      .then(([c, h]) => {
-        setChecks(c.data);
-        setHosts(h.data);
-      })
-      .catch(() => setError(tr("common.loadError")))
-      .finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+  const counts = useMemo(() => {
+    const c: Record<CheckStatus, number> = { OK: 0, WARNING: 0, CRITICAL: 0, UNKNOWN: 0 };
+    for (const ch of checks) if (!hostFilter || ch.host_id === hostFilter) c[statusOf(ch)] += 1;
+    return c;
+  }, [checks, hostFilter]);
+  const types = useMemo(() => [...new Set(checks.map((c) => c.type))].sort(), [checks]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    let config: Record<string, unknown> = {};
-    try {
-      config = JSON.parse(form.config_json || "{}");
-    } catch {
-      alert(tr("chk.badJson"));
-      return;
-    }
-    const payload = {
-      host_id: Number(form.host_id) || hosts[0]?.id,
-      name: form.name,
-      type: form.type,
-      interval_seconds: Number(form.interval_seconds),
-      timeout_seconds: Number(form.timeout_seconds),
-      warning_threshold: form.warning_threshold === "" ? null : Number(form.warning_threshold),
-      critical_threshold: form.critical_threshold === "" ? null : Number(form.critical_threshold),
-      config_json: config,
-      executor_host_id: Number(form.executor_host_id) || null,
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const list = checks.filter((c) =>
+      (status === "ALL" || statusOf(c) === status) &&
+      (!type || c.type === type) &&
+      (!hostFilter || c.host_id === hostFilter) &&
+      (!needle || [c.name, c.type, hostName.get(c.host_id) ?? ""].some((s) => s.toLowerCase().includes(needle))),
+    );
+    const cmp: Record<SortKey, (a: Check, b: Check) => number> = {
+      status: (a, b) => SEVERITY_RANK[statusOf(a)] - SEVERITY_RANK[statusOf(b)] || a.name.localeCompare(b.name),
+      name: (a, b) => a.name.localeCompare(b.name),
+      host: (a, b) => (hostName.get(a.host_id) ?? "").localeCompare(hostName.get(b.host_id) ?? "") || a.name.localeCompare(b.name),
+      type: (a, b) => a.type.localeCompare(b.type),
+      interval: (a, b) => a.interval_seconds - b.interval_seconds,
     };
-    if (editingId !== null) {
-      await updateCheck(editingId, payload);
-    } else {
-      await createCheck(payload);
+    return list.sort((a, b) => cmp[sort.key](a, b) * sort.dir);
+  }, [checks, q, status, type, hostFilter, sort, hostName]);
+  const pageItems = paginate(filtered, page);
+
+  const openCreate = () => { setEditing(null); setFormOpen(true); };
+  const onSaved = () => { setFormOpen(false); toast.success(editing ? t("chk.saved") : t("chk.created")); refresh(); };
+
+  const run = async (c: Check) => {
+    setRunning((s) => new Set(s).add(c.id));
+    try {
+      const { data: r } = await runCheck(c.id);
+      const msg = `${c.name} : ${t(`status.${r.status}`)}${r.message ? ` — ${r.message}` : ""}`;
+      if (r.status === "OK") toast.success(msg); else toast.info(msg);
+      refresh();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
+    } finally {
+      setRunning((s) => { const n = new Set(s); n.delete(c.id); return n; });
     }
-    setForm(EMPTY);
-    setEditingId(null);
-    setShowForm(false);
-    load();
   };
 
-  const run = async (id: number) => {
-    await runCheck(id);
-    load();
-  };
-  const remove = async (id: number) => {
-    if (confirm(tr("chk.confirmDelete"))) {
-      await deleteCheck(id);
-      load();
+  const remove = async (c: Check) => {
+    const ok = await confirm({
+      title: t("chk.deleteTitle"),
+      message: t("chk.deleteBody"),
+      details: `${c.name} · ${hostName.get(c.host_id) ?? "—"} · ${c.type}`,
+      confirmLabel: t("common.delete"),
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteCheck(c.id);
+      toast.success(t("chk.deleted"));
+      refresh();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t("common.actionFailed")));
     }
   };
 
-  const hostName = new Map(hosts.map((h) => [h.id, h.name]));
+  const SortHeader = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => {
+    const active = sort.key === k;
+    return (
+      <th scope="col" aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : "none"} className={className}>
+        <button type="button" className="inline-flex items-center gap-1 uppercase hover:text-ink"
+          onClick={() => setSort((s) => ({ key: k, dir: s.key === k ? (s.dir === 1 ? -1 : 1) : 1 }))}>
+          {label}
+          {active && (sort.dir === 1 ? <ArrowUp className="h-3 w-3" aria-hidden /> : <ArrowDown className="h-3 w-3" aria-hidden />)}
+        </button>
+      </th>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         helpTopic="checks"
-        title="Checks"
-        subtitle={`${checks.length} ${tr("chk.subtitle")}`}
-        actions={
-          editable && (
-            <button onClick={openCreate} className="btn-primary">
-              <Plus className="h-4 w-4" /> {showForm && editingId === null ? tr("common.cancel") : tr("chk.new")}
-            </button>
-          )
-        }
+        titleKey="chk.title"
+        subtitle={`${checks.length} ${t("chk.subtitle")}`}
+        actions={editable && (
+          <button type="button" onClick={openCreate} className="btn-primary" disabled={!hosts.length} title={!hosts.length ? t("chk.needHost") : undefined}>
+            <Plus className="h-4 w-4" aria-hidden /> {t("chk.new")}
+          </button>
+        )}
       />
 
-      {showForm && (
-        <Card>
-          <p className="mb-3 text-sm font-medium text-ink-soft">
-            {editingId !== null ? tr("chk.edit") : tr("chk.new")}
-          </p>
-          <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              {tr("chk.hostToMonitor")}
-              <select value={form.host_id} onChange={(e) => setForm({ ...form, host_id: Number(e.target.value) })} className="input" required>
-                <option value="">{tr("chk.chooseHost")}</option>
-                {hosts.map((h) => <option key={h.id} value={h.id}>{h.name} ({h.hostname_or_ip})</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              {tr("chk.controlType")}
-              <select value={form.type} onChange={(e) => changeType(e.target.value as CheckType)} className="input">
-                {CHECK_TYPES.map((t) => <option key={t} value={t}>{metaFor(t, lang).label}</option>)}
-              </select>
-            </label>
+      <div className="card space-y-3 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchInput value={q} onChange={setQ} placeholder={t("chk.searchPh")} className="min-w-[220px] flex-1" />
+          <label className="sr-only" htmlFor="chk-host">{t("chk.hostToMonitor")}</label>
+          <select id="chk-host" className="input" value={hostFilter} onChange={(e) => setHostFilter(Number(e.target.value))}>
+            <option value={0}>{t("chk.allHosts")}</option>
+            {hosts.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+          </select>
+          <label className="sr-only" htmlFor="chk-type">{t("chk.controlType")}</label>
+          <select id="chk-type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="">{t("chk.allTypes")}</option>
+            {types.map((ty) => <option key={ty} value={ty}>{metaFor(ty, lang).label}</option>)}
+          </select>
+        </div>
+        <FilterChips<StatusFilter>
+          label={t("list.statusFilter")}
+          value={status}
+          onChange={setStatus}
+          options={[
+            { v: "ALL", label: t("common.all"), count: counts.OK + counts.WARNING + counts.CRITICAL + counts.UNKNOWN },
+            ...(["CRITICAL", "WARNING", "UNKNOWN", "OK"] as const).map((s) => ({ v: s, label: t(`status.${s}`), count: counts[s], tone: statusMeta(s).dot })),
+          ]}
+        />
+      </div>
 
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft sm:col-span-2">
-              {tr("chk.nameLabel")}
-              <input required placeholder={`${tr("chk.namePhPre")} ${metaFor(form.type, lang).label} ${tr("chk.namePhPost")}`} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" />
-            </label>
-
-            {/* Aide contextuelle selon le type choisi */}
-            <div className="rounded-lg border border-brand/25 bg-brand/5 p-3 text-xs text-ink-soft sm:col-span-2">
-              <p className="font-medium text-ink">ℹ️ {metaFor(form.type, lang).desc}</p>
-              {metaFor(form.type, lang).thresholds && (
-                <p className="mt-1">{tr("chk.thresholdsWarnCrit")} {metaFor(form.type, lang).thresholds}.</p>
-              )}
-              {metaFor(form.type, lang).config !== "{}" && (
-                <p className="mt-1">{tr("chk.configExpected")} <code className="rounded bg-bg-soft px-1">{metaFor(form.type, lang).config}</code></p>
-              )}
-            </div>
-
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft sm:col-span-2">
-              {tr("chk.configLabel")} {metaFor(form.type, lang).config === "{}" ? tr("chk.noConfig") : tr("chk.replaceEmpty")}
-              <textarea value={form.config_json} onChange={(e) => setForm({ ...form, config_json: e.target.value })} className="input font-mono text-xs" rows={metaFor(form.type, lang).config.length > 60 ? 3 : 2} />
-            </label>
-
-            <div className="grid grid-cols-3 gap-2 sm:col-span-2">
-              <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                {tr("chk.interval")}
-                <input type="number" value={form.interval_seconds} onChange={(e) => setForm({ ...form, interval_seconds: Number(e.target.value) })} className="input" />
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                {tr("chk.warnThreshold")} {metaFor(form.type, lang).thresholds ? "" : tr("chk.optional")}
-                <input type="number" placeholder="—" value={form.warning_threshold} onChange={(e) => setForm({ ...form, warning_threshold: e.target.value })} className="input" />
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-                {tr("chk.critThreshold")} {metaFor(form.type, lang).thresholds ? "" : tr("chk.optional")}
-                <input type="number" placeholder="—" value={form.critical_threshold} onChange={(e) => setForm({ ...form, critical_threshold: e.target.value })} className="input" />
-              </label>
-            </div>
-
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              {tr("chk.maxDelay")}
-              <input type="number" value={form.timeout_seconds} onChange={(e) => setForm({ ...form, timeout_seconds: Number(e.target.value) })} className="input" />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-ink-soft">
-              {tr("chk.executedBy")}
-              <select value={form.executor_host_id} onChange={(e) => setForm({ ...form, executor_host_id: Number(e.target.value) })} className="input">
-                <option value={0}>{tr("chk.centralDefault")}</option>
-                {hosts.map((h) => <option key={h.id} value={h.id}>{tr("chk.probeAgent")} {h.name}</option>)}
-              </select>
-            </label>
-
-            <div className="flex gap-2 sm:col-span-2">
-              <button className="btn-primary flex-1">{editingId !== null ? tr("common.save") : tr("chk.createBtn")}</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY); }} className="btn-ghost">{tr("common.cancel")}</button>
-            </div>
-          </form>
-        </Card>
-      )}
-
-      {loading ? <Loading /> : error ? <ErrorState message={error} /> :
-        checks.length === 0 ? <EmptyState message={tr("chk.empty")} /> : (
-        <Card className="overflow-hidden p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-bg-soft/50 text-left text-xs uppercase tracking-wide text-ink-faint">
+      {loading && !data ? (
+        <Loading />
+      ) : error && !data ? (
+        <ErrorState message={error} onRetry={refresh} />
+      ) : checks.length === 0 ? (
+        <EmptyState icon={ListChecks} title={t("chk.emptyTitle")} message={hosts.length ? t("chk.emptyHint") : t("chk.needHost")}
+          action={editable ? (hosts.length
+            ? <button type="button" className="btn-primary" onClick={openCreate}><Plus className="h-4 w-4" aria-hidden /> {t("chk.new")}</button>
+            : <Link to="/hosts" className="btn-primary"><Plus className="h-4 w-4" aria-hidden /> {t("dash.addHost")}</Link>) : undefined} />
+      ) : filtered.length === 0 ? (
+        <EmptyState message={t("list.noMatch")} action={<button type="button" className="btn-ghost" onClick={() => { setQ(""); setStatus("ALL"); setType(""); setHostFilter(0); }}>{t("list.reset")}</button>} />
+      ) : (
+        <div className="card relative overflow-x-auto p-0">
+          <table className="table-std min-w-[820px]">
+            <caption className="sr-only">{t("chk.title")}</caption>
+            <thead>
               <tr>
-                <th className="px-4 py-3">{tr("chk.colName")}</th>
-                <th className="px-4 py-3">{tr("ten.host")}</th>
-                <th className="px-4 py-3">{tr("chk.colType")}</th>
-                <th className="px-4 py-3">{tr("chk.executedBy")}</th>
-                <th className="px-4 py-3">{tr("chk.colInterval")}</th>
-                <th className="px-4 py-3">{tr("cd.status")}</th>
-                <th className="px-4 py-3 text-right">{tr("common.actions")}</th>
+                <SortHeader k="status" label={t("list.col.status")} className="w-36" />
+                <SortHeader k="name" label={t("chk.colName")} />
+                <SortHeader k="host" label={t("ten.host")} />
+                <SortHeader k="type" label={t("chk.colType")} />
+                <th scope="col">{t("chk.executedBy")}</th>
+                <SortHeader k="interval" label={t("chk.colInterval")} className="text-right" />
+                {editable && <th scope="col" className="text-right"><span className="sr-only">{t("common.actions")}</span></th>}
               </tr>
             </thead>
             <tbody>
-              {checks.map((c) => (
-                <tr key={c.id} className="border-t border-border transition hover:bg-bg-soft/40">
-                  <td className="px-4 py-3">
-                    <Link to={`/checks/${c.id}`} className="font-medium text-ink hover:text-brand">{c.name}</Link>
-                  </td>
-                  <td className="px-4 py-3 text-ink-soft">{hostName.get(c.host_id) ?? "—"}</td>
-                  <td className="px-4 py-3 text-ink-soft">{c.type}</td>
-                  <td className="px-4 py-3 text-ink-soft">{c.executor_host_id ? `${tr("chk.agentPrefix")} ${hostName.get(c.executor_host_id) ?? "?"}` : tr("chk.central")}</td>
-                  <td className="px-4 py-3 text-ink-soft">{c.interval_seconds}s</td>
-                  <td className="px-4 py-3"><StatusBadge status={c.last_status} size="xs" /></td>
-                  <td className="px-4 py-3">
-                    {editable ? (
-                      <div className="flex items-center justify-end gap-3">
-                        <button onClick={() => run(c.id)} className="inline-flex items-center gap-1 text-brand hover:underline"><Play className="h-3.5 w-3.5" /> Run</button>
-                        <button onClick={() => openEdit(c)} className="inline-flex items-center gap-1 text-ink-soft hover:text-brand"><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => remove(c.id)} className="inline-flex items-center gap-1 text-status-critical/80 hover:text-status-critical"><Trash2 className="h-3.5 w-3.5" /></button>
-                      </div>
-                    ) : (
-                      <span className="block text-right text-ink-faint">—</span>
+              {pageItems.map((c) => {
+                const busy = running.has(c.id);
+                return (
+                  <tr key={c.id}>
+                    <td><StatusBadge status={c.last_status} size="xs" /></td>
+                    <td><Link to={`/checks/${c.id}`} className="font-medium text-ink hover:text-brand">{c.name}</Link></td>
+                    <td>
+                      <Link to={`/hosts/${c.host_id}`} className="text-ink-soft hover:text-brand">{hostName.get(c.host_id) ?? "—"}</Link>
+                    </td>
+                    <td className="text-xs text-ink-soft">{metaFor(c.type, lang).label}</td>
+                    <td className="text-xs text-ink-soft">{c.executor_host_id ? `${t("chk.agentPrefix")} ${hostName.get(c.executor_host_id) ?? "?"}` : t("chk.central")}</td>
+                    <td className="text-right text-xs tabular-nums text-ink-soft">{c.interval_seconds} s</td>
+                    {editable && (
+                      <td className="whitespace-nowrap text-right">
+                        <button type="button" className="icon-btn h-8 w-8 hover:text-brand" onClick={() => run(c)} disabled={busy}
+                          aria-label={`${t("chk.runNow")} ${c.name}`} title={t("chk.runNow")}>
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Play className="h-3.5 w-3.5" aria-hidden />}
+                        </button>{" "}
+                        <button type="button" className="icon-btn h-8 w-8" onClick={() => { setEditing(c); setFormOpen(true); }}
+                          aria-label={`${t("common.edit")} ${c.name}`} title={t("common.edit")}>
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        </button>{" "}
+                        <button type="button" className="icon-btn h-8 w-8 hover:text-status-critical" onClick={() => remove(c)}
+                          aria-label={`${t("common.delete")} ${c.name}`} title={t("common.delete")}>
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      </td>
                     )}
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
+
+      <Pagination page={page} total={filtered.length} onPage={setPage} />
+
+      <CheckForm open={formOpen} check={editing} hosts={hosts} defaultHostId={hostFilter || undefined}
+        onClose={() => setFormOpen(false)} onSaved={onSaved} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import { AXIS, ChartTooltip } from "./ChartTooltip";
+import { useI18n } from "../../lib/i18n";
 
 export function MetricArea({
   data,
@@ -24,9 +25,10 @@ export function MetricArea({
   height?: number;
   domain?: [number, number];
 }) {
+  const { t } = useI18n();
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.45} />
@@ -40,7 +42,7 @@ export function MetricArea({
         <Area
           type="monotone"
           dataKey="value"
-          name="Valeur"
+          name={t("chart.value")}
           stroke={color}
           strokeWidth={2}
           fill={`url(#grad-${id})`}

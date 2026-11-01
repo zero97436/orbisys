@@ -20,20 +20,20 @@ export function LiveEventFeed({ height = 320 }: { height?: number }) {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
-          <Radio className="h-4 w-4" /> Live Monitoring
+          <Radio className="h-4 w-4" aria-hidden /> {t("live.title")}
         </h2>
         <span className="flex items-center gap-1.5 text-xs text-ink-faint">
           <span
             className={cn(
               "inline-block h-2 w-2 rounded-full",
-              connected ? "bg-status-ok animate-pulse-ring" : "bg-status-unknown",
+              connected ? "bg-status-ok motion-safe:animate-pulse-ring" : "bg-status-unknown",
             )}
           />
           {connected ? t("live.live") : t("live.connecting")}
         </span>
       </div>
 
-      <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: height }}>
+      <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: height }} role="log" aria-live="polite" aria-label={t("live.title")}>
         {events.length === 0 ? (
           <p className="py-10 text-center text-sm text-ink-faint">
             {t("live.waiting")}
@@ -54,11 +54,11 @@ export function LiveEventFeed({ height = 320 }: { height?: number }) {
                   className="flex items-start gap-3 rounded-lg border border-border bg-bg-soft/60 p-2.5"
                 >
                   <span className={cn("mt-0.5 rounded-md p-1.5", meta.soft)}>
-                    <Icon className="h-3.5 w-3.5" />
+                    <Icon className="h-3.5 w-3.5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-ink">
-                      {t(kind.label)} · <span className={meta.text}>{e.status}</span>
+                      {t(kind.label)} · <span className={meta.text}>{t(`status.${e.status}`)}</span>
                     </p>
                     <p className="truncate text-xs text-ink-soft">
                       {e.hostName} / {e.checkName}

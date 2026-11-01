@@ -37,7 +37,7 @@ export function MetricCard({
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">{label}</p>
-          <p className={cn("mt-2 text-3xl font-semibold tabular-nums", a.text)}>{value}</p>
+          <p className={cn("mt-2 text-3xl font-semibold", a.text)}>{value}</p>
           {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}
         </div>
         <span className={cn("rounded-lg p-2 ring-1 ring-inset", a.bg, a.ring, a.text)}>
@@ -70,7 +70,7 @@ export function StatWidget({
       )}
       <div>
         <p className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</p>
-        <p className={cn("text-lg font-semibold tabular-nums", a.text)}>{value}</p>
+        <p className={cn("text-lg font-semibold", a.text)}>{value}</p>
       </div>
     </div>
   );

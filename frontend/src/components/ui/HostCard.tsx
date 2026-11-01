@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Server, Activity, Pencil } from "lucide-react";
 import type { CheckStatus, Host } from "../../types";
 import { statusMeta } from "../../lib/status";
-import { uptimeSince, timeAgo } from "../../lib/format";
+import { uptimeSince } from "../../lib/format";
 import { cn } from "../../lib/cn";
 import { fadeUp } from "./Card";
 import { StatusDot } from "./StatusBadge";
@@ -12,11 +12,11 @@ import { useI18n } from "../../lib/i18n";
 interface HostView extends Host {
   status: CheckStatus;
   checksCount?: number;
-  lastCheckAt?: string | null;
 }
 
 /** Tuile compacte pour la matrice Health Overview. */
 export function HealthCard({ host }: { host: HostView }) {
+  const { t } = useI18n();
   const meta = statusMeta(host.status);
   return (
     <motion.div variants={fadeUp} whileHover={{ y: -2 }}>
@@ -30,12 +30,12 @@ export function HealthCard({ host }: { host: HostView }) {
       >
         <div className="flex items-center justify-between">
           <span className="truncate text-sm font-medium text-ink">{host.name}</span>
-          <StatusDot status={host.status} pulse={host.status !== "OK"} />
+          <StatusDot status={host.status} pulse={host.status === "CRITICAL"} label={t(`status.${host.status}`)} />
         </div>
         <p className="mt-1 truncate font-mono text-[11px] text-ink-faint">{host.hostname_or_ip}</p>
         <div className="mt-2 flex items-center justify-between text-[11px] text-ink-soft">
           <span className="rounded bg-bg-soft px-1.5 py-0.5">{host.environment}</span>
-          <span>↑ {uptimeSince(host.created_at)}</span>
+          <span title={t("hosts.monitoredSince")}>{uptimeSince(host.created_at)}</span>
         </div>
       </Link>
     </motion.div>
@@ -72,23 +72,25 @@ export function HostCard({
               <p className="font-mono text-xs text-ink-faint">{host.hostname_or_ip}</p>
             </div>
           </Link>
-          <StatusDot status={host.status} pulse={host.status !== "OK"} />
+          <StatusDot status={host.status} pulse={host.status === "CRITICAL"} label={t(`status.${host.status}`)} />
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <Stat label={t("common.env")} value={host.environment} />
           <Stat label={t("common.checks")} value={host.checksCount ?? "—"} />
-          <Stat label={t("common.uptime")} value={uptimeSince(host.created_at)} />
+          <Stat label={t("hosts.monitoredSince")} value={uptimeSince(host.created_at)} />
         </div>
 
         <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs text-ink-faint">
           <span className="flex items-center gap-1">
-            <Activity className="h-3 w-3" />
-            {host.lastCheckAt ? timeAgo(host.lastCheckAt) : t("common.neverChecked")}
+            <Activity className="h-3 w-3" aria-hidden />
+            {t(`status.${host.status}`)}
           </span>
           <span className="flex items-center gap-3">
             {onEdit && (
               <button
+                type="button"
+                aria-label={`${t("common.edit")} ${host.name}`}
                 onClick={() => onEdit(host)}
                 className="flex items-center gap-1 text-ink-soft hover:text-brand"
               >
@@ -97,6 +99,8 @@ export function HostCard({
             )}
             {onDelete && (
               <button
+                type="button"
+                aria-label={`${t("common.delete")} ${host.name}`}
                 onClick={() => onDelete(host.id)}
                 className="text-status-critical/80 hover:text-status-critical"
               >

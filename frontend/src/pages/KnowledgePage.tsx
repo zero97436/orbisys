@@ -7,9 +7,15 @@ import { Loading } from "../components/States";
 import { useAuth } from "../lib/auth";
 import { canEdit } from "../lib/permissions";
 import { useI18n } from "../lib/i18n";
+import { useConfirm } from "../components/ui/Confirm";
+import { useToast } from "../components/ui/Toast";
+import { apiErrorMessage } from "../lib/apiError";
+
 
 export default function KnowledgePage() {
   const { t } = useI18n();
+  const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const editable = canEdit(user);
   const [docs, setDocs] = useState<KnowledgeDoc[]>([]);
@@ -31,7 +37,11 @@ export default function KnowledgePage() {
       load();
     } finally { setBusy(false); }
   };
-  const remove = async (id: number) => { if (confirm(t("kn.confirmDelete"))) { await deleteKnowledge(id); load(); } };
+  const remove = async (id: number, title: string) => {
+    if (!(await confirm({ title: t("kn.confirmDelete"), details: title, confirmLabel: t("common.delete"), tone: "danger" }))) return;
+    try { await deleteKnowledge(id); } catch (e) { toast.error(apiErrorMessage(e, t("common.actionFailed"))); }
+    load();
+  };
 
   const [bulk, setBulk] = useState("");
   const importMarkdown = async () => {
@@ -105,7 +115,7 @@ export default function KnowledgePage() {
           </div>
           <p className="mt-3 mb-1 text-xs text-ink-faint">{t("kn.pasteHint")}</p>
           <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={4}
-                    placeholder={"## Problème A\nSolution A…\n\n## Problème B\nSolution B…"}
+                    placeholder={t("kn.examplePh")}
                     className="input w-full font-mono text-xs" />
           <button onClick={importMarkdown} disabled={busy || !bulk.trim()} className="btn-primary mt-2">{t("kn.importDoc")}</button>
         </Card>
@@ -141,7 +151,7 @@ export default function KnowledgePage() {
                   </p>
                 </div>
               </div>
-              {editable && <button onClick={() => remove(d.id)} className="text-status-critical/70 hover:text-status-critical"><Trash2 className="h-4 w-4" /></button>}
+              {editable && <button type="button" onClick={() => remove(d.id, d.title)} className="icon-btn h-8 w-8 hover:text-status-critical" aria-label={`${t("common.delete")} ${d.title}`}><Trash2 className="h-4 w-4" aria-hidden /></button>}
             </div>
             <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-ink-soft">{d.content}</p>
           </div>

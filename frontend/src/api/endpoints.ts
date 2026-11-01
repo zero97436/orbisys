@@ -33,6 +33,8 @@ export interface LicenseInfo {
   used: number;
   customer: string | null;
   expires: string | null;
+  /** État de la clé configurée sur le serveur (jamais la clé elle-même). */
+  key_status?: "none" | "valid" | "expired" | "invalid";
 }
 export const getLicense = () => api.get<LicenseInfo>("/hosts/license");
 export const listHosts = () => api.get<Host[]>("/hosts");
@@ -63,6 +65,18 @@ export const updateCheck = (id: number, data: Partial<Check>) =>
   api.put<Check>(`/checks/${id}`, data);
 export const deleteCheck = (id: number) => api.delete(`/checks/${id}`);
 export const runCheck = (id: number) => api.post<CheckResult>(`/checks/${id}/run`);
+/** Disponibilité agrégée côté serveur (tous les checks visibles, toute la fenêtre). */
+export interface AvailabilityReport {
+  window_hours: number;
+  ok: number;
+  total: number;
+  /** null : aucun résultat dans la fenêtre. */
+  availability: number | null;
+  buckets: { start: string; end: string; ok: number; total: number }[];
+}
+export const getAvailability = (hours = 24, buckets = 24, checkId?: number) =>
+  api.get<AvailabilityReport>("/dashboard/availability", { params: { hours, buckets, ...(checkId ? { check_id: checkId } : {}) } });
+
 export const listResults = (id: number, limit = 100, offset = 0) =>
   api.get<CheckResult[]>(`/checks/${id}/results`, { params: { limit, offset } });
 
@@ -156,7 +170,7 @@ export const addBamComponent = (bsId: number, data: { check_id?: number; host_id
 export const removeBamComponent = (compId: number) => api.delete(`/bam/components/${compId}`);
 
 // --- Events (historique global) ---
-export const listEvents = (params?: { type?: string; level?: string; limit?: number; offset?: number }) =>
+export const listEvents = (params?: { type?: string; level?: string; host_id?: number; check_id?: number; limit?: number; offset?: number }) =>
   api.get<EventLog[]>("/events", { params });
 
 // --- Reports (SLA / MTTR) ---
@@ -357,6 +371,10 @@ export const reindexKnowledge = () => api.post<{ embedded: number }>("/knowledge
 export const importKnowledge = (data: { documents?: { title: string; content: string; source?: string }[]; markdown?: string; source?: string }) =>
   api.post<{ imported: number }>("/knowledge/import", data);
 export const importStarterPack = () => api.post<{ imported: number }>("/knowledge/starter-pack");
+/** Disponibilité du modèle local (Ollama). */
+export interface AiStatus { available: boolean; model: string; model_installed: boolean }
+export const getAiStatus = () => api.get<AiStatus>("/ai/status");
+
 export const applyPlan = (plan: AiPlan) => api.post<ApplyResult>("/ai/apply-plan", plan);
 
 // --- Users (admin) ---
@@ -463,5 +481,7 @@ export const listChannels = () =>
   api.get<NotificationChannel[]>("/settings/notification-channels");
 export const createChannel = (data: Partial<NotificationChannel>) =>
   api.post<NotificationChannel>("/settings/notification-channels", data);
+export const deleteChannel = (id: number) =>
+  api.delete(`/settings/notification-channels/${id}`);
 export const testChannel = (id: number) =>
   api.post<{ sent: boolean }>(`/settings/notification-channels/${id}/test`);

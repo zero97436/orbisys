@@ -23,3 +23,32 @@ def test_sms_channel_secret_redacted(client):
     sms = next(c for c in chans if c["name"] == "sms-astreinte")
     assert sms["config_json"]["auth_token"] == "********"  # secret masqué
     assert sms["config_json"]["from"] == "+1"               # non secret
+
+
+
+def test_delete_channel(client):
+    ch = client.post("/api/settings/notification-channels", json={
+        "name": "a-supprimer", "type": "webhook", "config_json": {"url": "https://exemple.invalid/hook"},
+    }).json()
+    assert client.delete(f"/api/settings/notification-channels/{ch['id']}").status_code == 204
+    names = [c["name"] for c in client.get("/api/settings/notification-channels").json()]
+    assert "a-supprimer" not in names
+    assert client.delete(f"/api/settings/notification-channels/{ch['id']}").status_code == 404
+
+
+def test_delete_channel_requires_admin(client, db):
+    from fastapi.testclient import TestClient
+    from app.core.security import hash_password
+    from app.main import app
+    from app.models.user import User
+
+    ch = client.post("/api/settings/notification-channels", json={
+        "name": "protege", "type": "webhook", "config_json": {"url": "https://exemple.invalid/hook"},
+    }).json()
+    if not db.query(User).filter_by(email="viewer-ch@local").first():
+        db.add(User(email="viewer-ch@local", hashed_password=hash_password("pw-viewer-123"), is_active=True, is_admin=False, role="viewer"))
+        db.commit()
+    v = TestClient(app)
+    tok = v.post("/api/auth/login", json={"email": "viewer-ch@local", "password": "pw-viewer-123"}).json()["access_token"]
+    v.headers.update({"Authorization": f"Bearer {tok}"})
+    assert v.delete(f"/api/settings/notification-channels/{ch['id']}").status_code == 403

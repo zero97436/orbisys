@@ -10,6 +10,9 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
+  // Parallélisme limité : au-delà, le serveur de dev (Vite) sature et des tests
+  // échouent par délai dépassé sans régression réelle (constaté avec 8+ workers).
+  workers: 3,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "list" : [["list"], ["html", { open: "never" }]],
   use: {

@@ -1,49 +1,56 @@
-export function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
+import { getLang, type Lang } from "./i18n";
+
+/** Locale Intl de la langue de l'application (pas celle du navigateur). */
+export const localeOf = (lang: Lang = getLang()): string => (lang === "en" ? "en-GB" : "fr-FR");
+
+export function formatDate(iso: string, lang?: Lang): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(localeOf(lang), { dateStyle: "short", timeStyle: "medium" });
 }
 
-export function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  } catch {
-    return iso;
-  }
+export function formatTime(iso: string, lang?: Lang): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString(localeOf(lang), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-/** "il y a 3 min" — relatif et compact. */
-export function timeAgo(iso: string): string {
+/** « il y a 3 min » / « 3 min ago » — relatif, compact, dans la langue de l'application. */
+export function timeAgo(iso: string, lang: Lang = getLang()): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return iso;
-  const diff = Math.max(0, Date.now() - then);
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `il y a ${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `il y a ${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h} h`;
-  const d = Math.floor(h / 24);
-  return `il y a ${d} j`;
+  const s = Math.floor(Math.max(0, Date.now() - then) / 1000);
+  const m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+  const v = s < 60 ? `${s} s` : m < 60 ? `${m} min` : h < 24 ? `${h} h` : `${d} ${lang === "en" ? "d" : "j"}`;
+  return lang === "en" ? `${v} ago` : `il y a ${v}`;
 }
 
-/** Durée lisible à partir d'une date de départ (uptime). */
-export function uptimeSince(iso: string): string {
+/** Durée compacte depuis un nombre de secondes : « 2 j 4 h », « 3 h 12 min », « 45 s ». */
+export function formatDuration(totalSeconds: number, lang: Lang = getLang()): string {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  const day = lang === "en" ? "d" : "j";
+  if (d > 0) return `${d} ${day} ${h} h`;
+  if (h > 0) return `${h} h ${m} min`;
+  if (m > 0) return `${m} min`;
+  return `${sec} s`;
+}
+
+/** Durée écoulée depuis une date (uptime, durée d'un incident). */
+export function uptimeSince(iso: string, lang?: Lang): string {
   const start = new Date(iso).getTime();
   if (Number.isNaN(start)) return "—";
-  const sec = Math.max(0, Math.floor((Date.now() - start) / 1000));
-  const d = Math.floor(sec / 86400);
-  const h = Math.floor((sec % 86400) / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (d > 0) return `${d}j ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  return formatDuration((Date.now() - start) / 1000, lang);
 }
 
-export function formatPercent(n: number, digits = 2): string {
-  return `${n.toFixed(digits)}%`;
+export function formatNumber(n: number, digits = 0, lang?: Lang): string {
+  return n.toLocaleString(localeOf(lang), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/** Pourcentage localisé : « 99,5 % » en français, « 99.5% » en anglais. */
+export function formatPercent(n: number, digits = 2, lang: Lang = getLang()): string {
+  const v = formatNumber(n, digits, lang);
+  return lang === "en" ? `${v}%` : `${v} %`;
 }
 
 export function formatMs(ms?: number | null): string {
